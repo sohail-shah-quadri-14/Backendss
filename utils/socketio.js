@@ -13,6 +13,8 @@ const quizRooms = new Map(); //Each event (quiz) has a room ID stored in quizRoo
 
 const participantData = new Map();
 
+
+
 // Initialize Socket.io server
 export const initSocketIO = (io) => {
   // Middleware for authentication

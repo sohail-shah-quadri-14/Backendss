@@ -9,9 +9,9 @@ import jwt from "jsonwebtoken";
 
 export const register = async (req, res) => {
     try {
-      const { FirstName, LastName, DateOfBirth, Email, Password } = req.body;
+      const { FirstName, LastName, DateOfBirth, Email, Password, gender } = req.body;
   
-      if (!FirstName || !LastName  || !DateOfBirth || !Email || !Password) {
+      if (!FirstName || !LastName || !DateOfBirth || !Email || !Password || !gender) {
         return res.status(400).json({ message: "Please provide all fields" });
       }
   
@@ -22,7 +22,14 @@ export const register = async (req, res) => {
       }
   
       //  password hashing is done by Sequelize hook  which is done automatically before saving 
-      const user = await User.create({ FirstName ,LastName,DateOfBirth, Email, Password });
+      const user = await User.create({ 
+        FirstName,
+        LastName,
+        DateOfBirth,
+        Email,
+        Password,
+        gender,
+      });
       
       const { accessToken, refreshToken } = user.generateTokens();
       

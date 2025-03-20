@@ -48,6 +48,10 @@ User.init(
       type: DataTypes.DATEONLY,  // Stores only date (YYYY-MM-DD)
       allowNull: false,  // Required field
     },
+    gender: {
+      type: DataTypes.ENUM('male', 'female'),
+      allowNull: false,
+    },
     Email: {
       type: DataTypes.STRING,
       allowNull: false,
