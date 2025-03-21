@@ -9,9 +9,9 @@ import jwt from "jsonwebtoken";
 
 export const register = async (req, res) => {
     try {
-      const { FirstName, LastName, DateOfBirth, Email, Password, gender } = req.body;
+      const { FirstName, LastName, DateOfBirth, Email, Password, gender, phone } = req.body;
   
-      if (!FirstName || !LastName || !DateOfBirth || !Email || !Password || !gender) {
+      if (!FirstName || !LastName || !DateOfBirth || !Email || !Password || !gender || !phone) {
         return res.status(400).json({ message: "Please provide all fields" });
       }
   
@@ -29,6 +29,7 @@ export const register = async (req, res) => {
         Email,
         Password,
         gender,
+        phone,
       });
       
       const { accessToken, refreshToken } = user.generateTokens();

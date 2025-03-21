@@ -64,33 +64,16 @@ User.init(
     },
     Phone: {
       type: DataTypes.STRING,
-      allowNull: true, // Optional, user can add later
+      allowNull: false, // Optional, user can add later
       unique: true,
-      validate: { isNumeric: true },
     },
     isPhoneVerified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    address: {  // New single address field
+    address: {
       type: DataTypes.STRING,
       allowNull: true,
-    },
-    City: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    State: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    Local: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    Country: {
-      type: DataTypes.STRING,
-      allowNull: true, // Optional field for country
     },
     Password: {
       type: DataTypes.STRING,
