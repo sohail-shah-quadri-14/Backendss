@@ -9,9 +9,9 @@ import jwt from "jsonwebtoken";
 
 export const register = async (req, res) => {
     try {
-      const { FirstName, LastName, DateOfBirth, Email, Password, gender, phone } = req.body;
+      const { FirstName, LastName, DateOfBirth, Email, Password, gender, Phone } = req.body;
   
-      if (!FirstName || !LastName || !DateOfBirth || !Email || !Password || !gender || !phone) {
+      if (!FirstName || !LastName || !DateOfBirth || !Email || !Password || !gender || !Phone) {
         return res.status(400).json({ message: "Please provide all fields" });
       }
   
@@ -29,7 +29,7 @@ export const register = async (req, res) => {
         Email,
         Password,
         gender,
-        phone,
+        Phone,
       });
       
       const { accessToken, refreshToken } = user.generateTokens();
@@ -199,6 +199,62 @@ export const logout = async (req, res) => {
   }
 };
 
+export const refreshAccessToken = async (req, res) => {
+  const { refreshToken } = req.cookies;
+
+  // Check if refresh token exists
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token missing" });
+  }
+
+  try {
+    // Verify the refresh token
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET_KEY
+    );
+
+    // Find the user in the database with matching id AND refreshToken
+    const user = await User.findOne({ 
+      where: { 
+        id: decoded.id,
+        refreshToken: refreshToken
+      } 
+    });
+    
+    if (!user) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
   
+    // Generate a new access token using the same data structure as generateTokens
+    const accessToken = jwt.sign(
+      { id: user.id, Email: user.Email, Role: user.Role },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: "60m" }
+    );
+
+    // Set the new access token in cookies
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // Fixed environment check
+      sameSite: "none", // for production "None" for development "Lax"
+      maxAge: 60 * 60 * 1000, // 1 hour
+    });
+
+    return res.status(200).json({ 
+      message: "Access token refreshed",
+      user: {
+        id: user.id,
+        FirstName: user.FirstName,
+        LastName: user.LastName,
+        Email: user.Email,
+        Role: user.Role
+      }
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(403).json({ message: "Invalid refresh token" });
+  }
+};
 
 
