@@ -54,14 +54,14 @@ export const register = async (req, res) => {
 
     res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env === "production", // for production "true" for development "false"
+    secure: process.env.NODE_ENV === "production", // for production "true" for development "false"
     sameSite: "none", // for production "None" for development "Lax"
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env === "production", 
+    secure: process.env.NODE_ENV === "production", 
     sameSite: "none", 
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   }); 
@@ -107,14 +107,14 @@ export const login = async (req, res) => {
 
     res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env === "production", // for production "true" for development "false"
+    secure: process.env.NODE_ENV === "production", // for production "true" for development "false"
     sameSite: "none", // for production "None" for development "Lax"
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env === "production", 
+    secure: process.env.NODE_ENV === "production", 
     sameSite: "none", // Adjust for production or local development
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   }); 
