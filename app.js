@@ -12,6 +12,7 @@ import { initSocketIO } from './utils/socketio.js';
 import { connectToDatabase } from './config/mongodb.js';
 import DashboardRoutes from "./routes/dashboardRoutes.js";
 dotenv.config(); // Load environment variables
+import compression from 'compression';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -41,6 +42,7 @@ global.io = io;
 initSocketIO(io);
 
 // Cookie parser middleware
+app.use(compression());
 app.use(cookieParser());
 
 // CORS configuration
