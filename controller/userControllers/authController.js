@@ -250,8 +250,8 @@ export const refreshAccessToken = async (req, res) => {
     // Set the new access token in cookies
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: false, // Fixed environment check
-      sameSite: "lax", // for production "None" for development "Lax"
+      secure: process.env.NODE_ENV === "production", // Fixed environment check
+      sameSite: "none", // for production "None" for development "Lax"
       maxAge: 60 * 60 * 1000, // 1 hour
     });
 
