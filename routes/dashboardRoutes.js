@@ -1,10 +1,17 @@
 import express from "express";
 import { authenticate } from "../middleware/authmiddleware.js";
-import { getStudentDashboard } from "../controller/dashboardController.js";
-
+import { 
+  getStudentStats, 
+  getRSVPdEvents, 
+} from "../controller/dashboardController.js";
 const router = express.Router();
 
-// Get student dashboard
-router.get("/student", authenticate, getStudentDashboard);
+
+
+
+// Dashboard routes
+router.get("/stats", authenticate, getStudentStats);
+router.get("/rsvpd-events", authenticate, getRSVPdEvents);
+
 
 export default router; 

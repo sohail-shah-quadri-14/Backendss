@@ -41,7 +41,7 @@ global.io = io;
 // Initialize socket.io handlers
 initSocketIO(io);
 
-// Cookie parser middleware
+
 app.use(compression());
 app.use(cookieParser());
 
