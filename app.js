@@ -48,7 +48,7 @@ app.use(cookieParser());
 // CORS configuration
 app.use(
   cors({
-    origin: "http://localhost:8081", // Your frontend URL
+    origin: ["http://localhost:8081", "http://52.203.42.98:8000", "http://52.203.42.98"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
