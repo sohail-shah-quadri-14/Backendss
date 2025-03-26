@@ -54,16 +54,16 @@ export const register = async (req, res) => {
       // await transporter.sendMail(mailOptions);
 
     res.cookie("accessToken", accessToken, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production", // for production "true" for development "false"
-    sameSite: "none", // for production "None" for development "Lax"
+    httpOnly: true,
+    secure: false, // Set to false for HTTP
+    sameSite: "lax", // Changed to lax for HTTP
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production", 
-    sameSite: "none", 
+    httpOnly: true,
+    secure: false, // Set to false for HTTP
+    sameSite: "lax", // Changed to lax for HTTP
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   }); 
 
@@ -113,16 +113,16 @@ export const login = async (req, res) => {
       await user.save();
 
     res.cookie("accessToken", accessToken, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production", // for production "true" for development "false"
-    sameSite: "none", // for production "None" for development "Lax"
+    httpOnly: true,
+    secure: false, // Set to false for HTTP
+    sameSite: "lax", // Changed to lax for HTTP
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: false, 
-    secure: process.env.NODE_ENV === "production", 
-    sameSite: "none", // Adjust for production or local development
+    httpOnly: true, 
+    secure: false, // Set to false for HTTP
+    sameSite: "lax", // Changed to lax for HTTP
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   }); 
    
@@ -250,8 +250,8 @@ export const refreshAccessToken = async (req, res) => {
     // Set the new access token in cookies
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Fixed environment check
-      sameSite: "none", // for production "None" for development "Lax"
+      secure: false, // Fixed environment check
+      sameSite: "lax", // for production "None" for development "Lax"
       maxAge: 60 * 60 * 1000, // 1 hour
     });
 
