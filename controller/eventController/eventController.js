@@ -8,11 +8,11 @@ export const createEvent = async (req, res) => {
   try {
     
     console.log(req.user.id);
-    const { title, description, startTime, endTime, points,  picture } = req.body; 
+    const { title, description, startTime, endTime, points} = req.body; 
     const hostID = req.user.id;
 
     // Validate required fields
-    if (!title || !description || !startTime || !endTime || !points || !picture) {
+    if (!title || !description || !startTime || !endTime || !points ) {
       return res.status(400).json({ 
         message: "All fields are required" 
       });
@@ -31,7 +31,6 @@ export const createEvent = async (req, res) => {
       startTime,
       endTime,
       points,
-      picture,
       hostID,
       status: "Upcoming"
     });
@@ -260,8 +259,7 @@ export const getEventDetails = async (req, res) => {
       currentParticipants: event.currentParticipants,
       subject: event.subject,
       standard: event.standard,
-      createdAt: event.createdAt,
-      updatedAt: event.updatedAt
+      picture: event.picture
     };
     
     res.status(200).json(eventDetails);
