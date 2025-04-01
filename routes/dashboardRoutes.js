@@ -3,7 +3,7 @@ import { authenticate } from "../middleware/authmiddleware.js";
 import { 
   getStudentStats, 
   getRSVPdEvents, 
-} from "../controller/dashboardController.js";
+} from "../controller/eventController/dashboardController.js";
 const router = express.Router();
 
 
