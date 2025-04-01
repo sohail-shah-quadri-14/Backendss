@@ -189,7 +189,8 @@ export const getUpcomingEvents = async (req, res) => {
       description: event.description,
       startTime: event.startTime,
       endTime: event.endTime,
-      hostID: event.hostID
+      hostID: event.hostID,
+      picture: event.picture
     }));
 
     res.status(200).json(eventsResponse);
