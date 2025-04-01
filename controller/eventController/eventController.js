@@ -8,7 +8,7 @@ export const createEvent = async (req, res) => {
   try {
     
     console.log(req.user.id);
-    const { title, description, startTime, endTime, points} = req.body; 
+    const { title, description, startTime, endTime, points, picture} = req.body; 
     const hostID = req.user.id;
 
     // Validate required fields
@@ -31,6 +31,7 @@ export const createEvent = async (req, res) => {
       startTime,
       endTime,
       points,
+      picture,
       hostID,
       status: "Upcoming"
     });
@@ -44,7 +45,8 @@ export const createEvent = async (req, res) => {
         startTime: event.startTime,
         endTime: event.endTime,
         points: event.points,
-        status: event.status,
+        status: event.status,   
+        picture: event.picture,
         currentParticipants: event.currentParticipants,
         hostID: event.hostID
       }
