@@ -13,8 +13,6 @@ export const connectToDatabase = async () => {
 
   try {
     const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       maxPoolSize: 10, // Maximum number of connections in the pool
       minPoolSize: 5,  // Minimum number of connections in the pool
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
@@ -28,12 +26,12 @@ export const connectToDatabase = async () => {
     isConnected = db.connections[0].readyState;
     console.log('=> Connected to MongoDB with connection pool');
     
-    // Log pool status
-    const pool = db.connection.client.topology.s.pool;
-    console.log('=> Connection pool status:', {
-      totalConnections: pool.totalConnectionCount,
-      availableConnections: pool.availableConnectionCount,
-      pendingConnections: pool.pendingConnectionCount
+    // Log connection status
+    console.log('=> MongoDB connection status:', {
+      readyState: db.connections[0].readyState,
+      host: db.connections[0].host,
+      port: db.connections[0].port,
+      name: db.connections[0].name
     });
 
     return db;
