@@ -280,129 +280,43 @@ export const startEvent = async (req, res) => {
     const { eventId } = req.params;
     const hostId = req.user.id;
 
-   
-
-    // Get event
     const event = await Event.findByPk(eventId);
     if (!event) {
-      console.log('Event not found:', eventId);
+      console.log("Event not found:", eventId);
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Check if user is the host of this event
     if (event.hostID !== hostId) {
-      console.log('Host ID mismatch:', { eventHostId: event.hostID, requestHostId: hostId });
+      console.log("Host ID mismatch:", { eventHostId: event.hostID, requestHostId: hostId });
       return res.status(403).json({ message: "You can only start events you created" });
     }
 
-    // Check if event is already ongoing or completed
     if (event.status === "Ongoing") {
-      console.log('Event already ongoing:', event.id);
       return res.status(400).json({ message: "Event is already ongoing" });
     }
     if (event.status === "Completed") {
-      console.log('Event already completed:', event.id);
       return res.status(400).json({ message: "Event is already completed" });
     }
 
-    // Update event status to "Ongoing"
-    console.log('Updating event status to Ongoing:', event.id);
     await event.update({ status: "Ongoing" });
 
-    
-
-    // Notify only participants who have joined this event
     if (global.io) {
-      global.io.to(eventId).emit('event-started', {
-        eventId: updatedEvent.id,
-        title: updatedEvent.title,
-        hostId: updatedEvent.hostID,
-        status: updatedEvent.status,
-        startTime: updatedEvent.startTime
+      global.io.to(`event-${eventId}`).emit("event-started", {
+        eventId: event.id,
+        title: event.title,
+        hostId: event.hostID,
+        status: event.status,
+        startTime: event.startTime
       });
-      console.log('Socket.io notification sent for event start:', updatedEvent.id);
-    } else {
-      console.log('Socket.io not available, skipping notification');
+      console.log("Socket.io event started:", event.id);
     }
 
     res.status(200).json({
       message: "Event started successfully",
-      event: {
-        id: updatedEvent.id,
-        title: updatedEvent.title,
-        description: updatedEvent.description,
-        startTime: updatedEvent.startTime,
-        endTime: updatedEvent.endTime,
-        points: updatedEvent.points,
-        status: updatedEvent.status,
-        currentParticipants: updatedEvent.currentParticipants,
-        hostID: updatedEvent.hostID
-      }
+      event
     });
   } catch (error) {
     console.error("Error starting event:", error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-
-// Join a live event
-export const joinLiveEvent = async (req, res) => {
-  try {
-    const { eventId } = req.params;
-    const userId = req.user.id;
-
-    // Check if user is registered
-    const registration = await UserEvent.findOne({
-      where: {
-        userId,
-        eventId,
-        status: "Registered"
-      }
-    });
-
-    if (!registration) {
-      return res.status(403).json({ message: "You must register for the event first" });
-    }
-
-    // Get event
-    const event = await Event.findByPk(eventId);
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
-
-    // Check if event is ongoing
-    if (event.status !== "Ongoing") {
-      return res.status(400).json({ message: "Event is not ongoing" });
-    }
-
-    // Update registration status to "Joined"
-    await registration.update({ status: "Joined" });
-
-    // Set up socket connection
-    if (global.io) {
-      const socket = global.io.sockets.sockets.get(userId);
-      if (socket) {
-        socket.join(`event-${eventId}`);
-        socket.emit('joined-event-room', {
-          eventId,
-          status: 'Joined',
-          message: 'Successfully joined live event'
-        });
-      }
-    }
-
-    res.status(200).json({ 
-      message: "Successfully joined live event",
-      event: {
-        id: event.id,
-        title: event.title,
-        youtubeVideoId: event.youtubeVideoId
-      }
-    });
-  } catch (error) {
-    console.error("Error joining live event:", error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -8,7 +8,6 @@ import {
   getOngoingEvents,
   getEventDetails,
   updateEvent,
-  joinLiveEvent,
   startEvent,
   getRegisteredEvents
 } from "../controller/eventController/eventController.js";
@@ -23,8 +22,6 @@ router.post("/create", authenticate, checkRole(["Host"]), createEvent);
 // Join event (Student only)
 router.post("/join/:eventId", authenticate, registerEvent);
 
-// Join live event (Student only)
-router.post("/join-live/:eventId", authenticate, joinLiveEvent);
 
 // Start event (Host only)
 router.post("/start/:eventId", authenticate, checkRole(["Host"]), startEvent);
