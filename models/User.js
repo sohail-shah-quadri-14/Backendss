@@ -20,7 +20,7 @@ class User extends Model {
     const refreshToken = jwt.sign(
       { id: this.id, Email: this.Email, Role: this.Role },
       process.env.REFRESH_TOKEN_SECRET_KEY,
-      { expiresIn: "7d" } // Refresh Token expires in 7 days
+      { expiresIn: "60d" } // Refresh Token expires in 7 days
     );
 
     return { accessToken, refreshToken };
