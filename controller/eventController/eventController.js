@@ -190,7 +190,8 @@ export const getUpcomingEvents = async (req, res) => {
       startTime: event.startTime,
       endTime: event.endTime,
       hostID: event.hostID,
-      picture: event.picture
+      picture: event.picture,
+      points: event.points,
     }));
 
     res.status(200).json(eventsResponse);
