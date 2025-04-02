@@ -36,7 +36,7 @@ router.get("/upcoming", authenticate, getUpcomingEvents);
 router.get("/ongoing", authenticate, getOngoingEvents);
 
 // Get registered events (For logged-in users)
-router.get("/registered/me", authenticate, getRegisteredEvents);
+router.get("/registered", authenticate, getRegisteredEvents);
 
 // Get event details (Public)
 router.get("/:eventId", authenticate, getEventDetails);
