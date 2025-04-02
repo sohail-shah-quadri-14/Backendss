@@ -9,7 +9,8 @@ import {
   getEventDetails,
   updateEvent,
   joinLiveEvent,
-  startEvent
+  startEvent,
+  getRegisteredEvents
 } from "../controller/eventController/eventController.js";
 import { checkRole } from "../middleware/checkRole.js";
 
@@ -33,6 +34,9 @@ router.get("/upcoming", authenticate, getUpcomingEvents);
 
 // Get ongoing events (Public)
 router.get("/ongoing", authenticate, getOngoingEvents);
+
+// Get registered events (For logged-in users)
+router.get("/registered/me", authenticate, getRegisteredEvents);
 
 // Get event details (Public)
 router.get("/:eventId", authenticate, getEventDetails);

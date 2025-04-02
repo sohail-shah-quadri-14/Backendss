@@ -12,7 +12,7 @@ export const createEvent = async (req, res) => {
     const hostID = req.user.id;
 
     // Validate required fields
-    if (!title || !description || !startTime || !endTime || !points ) {
+    if (!title || !description || !startTime || !endTime || !points || !youtubeVideoId  ) {
       return res.status(400).json({ 
         message: "All fields are required" 
       });
@@ -403,6 +403,51 @@ export const joinLiveEvent = async (req, res) => {
   } catch (error) {
     console.error("Error joining live event:", error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Get events user has registered for
+export const getRegisteredEvents = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Find all user-event relationships for this user
+    const registeredEvents = await UserEvent.findAll({
+      where: {
+        userId: userId,
+        status: "Registered"
+      },
+      include: [{
+        model: Event,
+        attributes: ['id', 'title', 'description', 'startTime', 'endTime', 'status', 'points', 'currentParticipants']
+      }]
+    });
+
+    // Format the response
+    const events = registeredEvents.map(registration => ({
+      id: registration.Event.id,
+      title: registration.Event.title,
+      description: registration.Event.description,
+      startTime: registration.Event.startTime,
+      endTime: registration.Event.endTime,
+      status: registration.Event.status,
+      points: registration.Event.points,
+      currentParticipants: registration.Event.currentParticipants,
+      registrationStatus: registration.status
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: events.length > 0 ? "Registered events retrieved successfully" : "No registered events found",
+      events: events
+    });
+
+  } catch (error) {
+    console.error("Error fetching registered events:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
