@@ -17,7 +17,8 @@ const participantData = new Map();
 
 // Initialize Socket.io server
 export const initSocketIO = (io) => {
-  // Middleware for authentication
+  // Commenting out authentication middleware for now
+  /*
   io.use(async (socket, next) => {
     try {
       // Get cookies from handshake
@@ -69,17 +70,21 @@ export const initSocketIO = (io) => {
       next(new Error('Authentication error: Invalid token'));
     }
   });
+  */
   
   // Handle connections
   io.on('connection', (socket) => {
-    console.log(`New socket connection: ${socket.id} (User: ${socket.userId}, Role: ${socket.role})`);
+    // Temporary user identification (we'll replace this with proper auth later)
+    socket.userId = `user_${socket.id}`;
+    socket.role = 'student'; // Default role for now
     
-    // Send authentication confirmation
-    socket.emit('authenticated', {
+    console.log(`New socket connection: ${socket.id} (User: ${socket.userId})`);
+    
+    // Send connection confirmation
+    socket.emit('connected', {
       userId: socket.userId,
       role: socket.role
     });
-    
     
     // Handle joining a quiz room
     socket.on('join-quiz', async (data) => {

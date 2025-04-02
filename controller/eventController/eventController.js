@@ -8,7 +8,7 @@ export const createEvent = async (req, res) => {
   try {
     
     console.log(req.user.id);
-    const { title, description, startTime, endTime, points, picture} = req.body; 
+    const { title, description, startTime, endTime, points, youtubeVideoId} = req.body; 
     const hostID = req.user.id;
 
     // Validate required fields
@@ -31,7 +31,7 @@ export const createEvent = async (req, res) => {
       startTime,
       endTime,
       points,
-      picture,
+      youtubeVideoId,
       hostID,
       status: "Upcoming"
     });
@@ -271,7 +271,7 @@ export const getEventDetails = async (req, res) => {
   }
 };
 
-// ... existing code ...
+
 
 // Start an event
 export const startEvent = async (req, res) => {
@@ -344,7 +344,7 @@ export const startEvent = async (req, res) => {
   }
 };
 
-// ... existing code ...
+
 
 // Join a live event
 export const joinLiveEvent = async (req, res) => {
@@ -352,9 +352,17 @@ export const joinLiveEvent = async (req, res) => {
     const { eventId } = req.params;
     const userId = req.user.id;
 
-    // Check if user is a student
-    if (req.user.Role !== "Student") {
-      return res.status(403).json({ message: "Only students can join events" });
+    // Check if user is registered
+    const registration = await UserEvent.findOne({
+      where: {
+        userId,
+        eventId,
+        status: "Registered"
+      }
+    });
+
+    if (!registration) {
+      return res.status(403).json({ message: "You must register for the event first" });
     }
 
     // Get event
@@ -365,47 +373,31 @@ export const joinLiveEvent = async (req, res) => {
 
     // Check if event is ongoing
     if (event.status !== "Ongoing") {
-      return res.status(400).json({ message: "Can only join ongoing events" });
+      return res.status(400).json({ message: "Event is not ongoing" });
     }
 
-    // Check if student is registered for this event
-    const registration = await UserEvent.findOne({
-      where: {
-        userId,
-        eventId,
-        status: "Registered"
-      }
-    });
-
-    if (!registration) {
-      return res.status(400).json({ 
-        message: "You must register for this event before joining it live" 
-      });
-    }
-
-    // Update user event status to "Joined"
+    // Update registration status to "Joined"
     await registration.update({ status: "Joined" });
 
-    // Update user's totalEventsPlayed count
-    await User.increment('totalEventsPlayed', { where: { id: userId } });
+    // Set up socket connection
+    if (global.io) {
+      const socket = global.io.sockets.sockets.get(userId);
+      if (socket) {
+        socket.join(`event-${eventId}`);
+        socket.emit('joined-event-room', {
+          eventId,
+          status: 'Joined',
+          message: 'Successfully joined live event'
+        });
+      }
+    }
 
-    // Return connection details for WebSocket
-    res.status(200).json({
+    res.status(200).json({ 
       message: "Successfully joined live event",
       event: {
         id: event.id,
         title: event.title,
-        description: event.description,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        points: event.points,
-        status: event.status
-      },
-      // WebSocket connection details would go here
-      connectionDetails: {
-        eventId: event.id,
-        userId: userId,
-        // Add any other details needed for WebSocket connection
+        youtubeVideoId: event.youtubeVideoId
       }
     });
   } catch (error) {
