@@ -7,9 +7,10 @@ import { testConnection, syncDatabase } from "./config/sqlconnection.js";
 import { Server } from "socket.io";
 import UserRoutes from "./routes/userProfileRoutes.js";
 import EventRoutes from "./routes/eventRoutes.js";
+import AdminRoutes from "./routes/adminRoutes.js";
 import http from 'http';
 import { initSocketIO } from './utils/socketio.js';
-import { connectToDatabase } from './config/mongodb.js';
+// import { connectToDatabase } from './config/mongodb.js';
 import DashboardRoutes from "./routes/dashboardRoutes.js";
 dotenv.config(); // Load environment variables
 import compression from 'compression';
@@ -65,6 +66,7 @@ app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/user", UserRoutes);
 app.use("/api/v1/events", EventRoutes);
 app.use("/api/v1/dashboard", DashboardRoutes);
+app.use("/api/v1/admin", AdminRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -77,9 +79,9 @@ const startServer = async () => {
     // Connect to SQL database
     await testConnection(); // Check DB connection
     await syncDatabase(); // Use with caution in production
-    
+
     // Connect to MongoDB (for questions)
-    await connectToDatabase();
+    // await connectToDatabase();
 
     server.listen(port, () => {
       console.log(` Server is running on port ${port}`);

@@ -8,7 +8,7 @@ export const createEvent = async (req, res) => {
   try {
     
     console.log(req.user.id);
-    const { title, description, startTime, endTime, points, youtubeVideoId} = req.body; 
+    const { title, description, startTime, endTime, points, youtubeVideoId, picture } = req.body; 
     const hostID = req.user.id;
 
     // Validate required fields
@@ -28,6 +28,7 @@ export const createEvent = async (req, res) => {
     const event = await Event.create({
       title,
       description,
+      picture,
       startTime,
       endTime,
       points,
