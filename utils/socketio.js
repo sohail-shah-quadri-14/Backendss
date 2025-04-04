@@ -79,73 +79,274 @@ export const initSocketIO = (io) => {
     console.log(`New connection: ${socket.id} (User: ${socket.userId}, Role: ${socket.role})`);
     socket.emit('connected', { userId: socket.userId, role: socket.role });
 
-    socket.on('join-live-event', async ({ eventId }) => {
+    // Host creates and joins a quiz room
+    socket.on('host-quiz', async ({ eventId }) => {
       try {
+        // Verify user is a host
+        if (socket.role !== 'host') {
+          return socket.emit('error', { message: 'Only hosts can create quiz rooms' });
+        }
+
+        // Find the event
         const event = await Event.findByPk(eventId);
-        if (!event || event.status !== 'Ongoing') {
-          return socket.emit('error', { message: 'Invalid or inactive event' });
+        if (!event) {
+          return socket.emit('error', { message: 'Event not found' });
         }
 
-        if (socket.role === 'student') {
-          const registration = await UserEvent.findOne({ where: { userId: socket.userId, eventId, status: 'Registered' } });
-          if (!registration) return socket.emit('error', { message: 'Not registered for this event' });
-
-          await registration.update({ status: 'Joined' });
+        // Verify the user is the host of this event
+        if (event.hostID !== socket.userId) {
+          return socket.emit('error', { message: 'You can only host events you created' });
         }
 
-        if (socket.eventId) socket.leave(`quiz-${socket.eventId}`);
+        // Check if event is already completed
+        if (event.status === 'Completed') {
+          return socket.emit('error', { message: 'Cannot host a completed event' });
+        }
+
+        // Update event status to Ongoing
+        await event.update({ status: 'Ongoing' });
+
+        // Leave any previous quiz room
+        if (socket.eventId) {
+          socket.leave(`quiz-${socket.eventId}`);
+        }
+
+        // Join this quiz room
         socket.eventId = eventId;
         socket.join(`quiz-${eventId}`);
 
+        // Create quiz room if it doesn't exist
         if (!quizRooms.has(eventId)) {
           quizRooms.set(eventId, {
-            hostId: event.hostID,
-            participants: new Set(),
+            hostId: socket.userId,
+            participants: new Set([socket.userId]), // Add host as first participant
             questions: [],
             currentQuestionIndex: -1,
             questionInProgress: false,
             answers: {},
             isActive: false
           });
+        } else {
+          // If room exists, update host and add to participants
+          const room = quizRooms.get(eventId);
+          room.hostId = socket.userId;
+          room.participants.add(socket.userId);
         }
 
+        // Use static questions
+        room.questions = staticQuestions;
+        room.currentQuestionIndex = -1; // Start before first question
+        room.isActive = true;
+
+        // Notify the host
+        socket.emit('quiz-hosted', {
+          eventId,
+          message: 'You are now hosting this quiz. Quiz is active!',
+          status: 'Ongoing',
+          totalQuestions: staticQuestions.length
+        });
+
+        // Find all users who registered for this event
+        const registrations = await UserEvent.findAll({
+          where: { eventId, status: 'Registered' },
+          attributes: ['userId']
+        });
+
+        // Get the registered user IDs
+        const registeredUserIds = registrations.map(reg => reg.userId);
+
+        // Notify registered users that the event is now ongoing
+        for (const [_, connectedSocket] of io.sockets.sockets) {
+          if (connectedSocket.userId && registeredUserIds.includes(connectedSocket.userId)) {
+            connectedSocket.emit('event-status-changed', {
+              eventId,
+              status: 'Ongoing'
+            });
+          }
+        }
+
+        // Broadcast to the room that the quiz has started
+        io.to(`quiz-${eventId}`).emit('quiz-started', {
+          message: 'Quiz started!',
+          eventStatus: 'Ongoing',
+          totalQuestions: staticQuestions.length
+        });
+
+        console.log(`Host ${socket.userId} created quiz room for event ${eventId}`);
+      } catch (error) {
+        console.error('Host quiz error:', error);
+        socket.emit('error', { message: 'Failed to host quiz' });
+      }
+    });
+
+    // Students join an existing quiz
+    socket.on('join-live-quiz', async ({ eventId }) => {
+      try {
+        // Verify user is a student
+        if (socket.role !== 'student') {
+          return socket.emit('error', { message: 'This endpoint is for students only' });
+        }
+
+        // Find the event
+        const event = await Event.findByPk(eventId);
+        if (!event || event.status !== 'Ongoing') {
+          return socket.emit('error', { message: 'Event is not currently active' });
+        }
+
+        // Verify student is registered
+        const registration = await UserEvent.findOne({
+          where: { userId: socket.userId, eventId, status: 'Registered' }
+        });
+
+        if (!registration) {
+          return socket.emit('error', { message: 'You are not registered for this event' });
+        }
+
+        // Update registration status
+        await registration.update({ status: 'Joined' });
+
+        // Leave any previous quiz room
+        if (socket.eventId) {
+          socket.leave(`quiz-${socket.eventId}`);
+        }
+
+        // Join this quiz room
+        socket.eventId = eventId;
+        socket.join(`quiz-${eventId}`);
+
+        // Get quiz room
         const room = quizRooms.get(eventId);
+        if (!room) {
+          return socket.emit('error', { message: 'Quiz room not found' });
+        }
+
+        // Add student to participants
         room.participants.add(socket.userId);
 
-        if (socket.role === 'host' && socket.userId !== room.hostId) {
-          socket.leave(`quiz-${eventId}`);
-          return socket.emit('error', { message: 'Unauthorized host' });
-        }
+        // Notify the student
+        socket.emit('joined-quiz', {
+          eventId,
+          participantCount: room.participants.size,
+          message: 'You have joined the quiz'
+        });
 
-        socket.emit('joined-quiz', { eventId, participantCount: room.participants.size });
-        console.log(`User ${socket.userId} joined quiz ${eventId}`);
+        // Notify the host about new participant
+        io.to(`user-${room.hostId}`).emit('participant-joined', {
+          userId: socket.userId,
+          name: socket.userData?.name || 'Unknown User',
+          participantCount: room.participants.size
+        });
+
+        console.log(`Student ${socket.userId} joined quiz ${eventId}`);
       } catch (error) {
         console.error('Join quiz error:', error);
         socket.emit('error', { message: 'Failed to join quiz' });
       }
     });
 
-    socket.on('start-quiz', async ({ eventId }) => {
+    // Host sends the next question to all participants
+    socket.on('next-question', async ({ eventId }) => {
       try {
+        // Verify user is a host
+        if (socket.role !== 'host') {
+          return socket.emit('error', { message: 'Only hosts can control questions' });
+        }
+
+        // Check if quiz room exists
         const room = quizRooms.get(eventId);
-        if (!room || socket.userId !== room.hostId) {
-          return socket.emit('error', { message: 'Unauthorized host' });
+        if (!room) {
+          return socket.emit('error', { message: 'Quiz room not found' });
         }
 
-        const event = await Event.findByPk(eventId);
-        if (!event) return socket.emit('error', { message: 'Event not found' });
-
-        if (event.status === 'Completed') {
-          return socket.emit('error', { message: 'Cannot start quiz for a completed event' });
+        // Verify user is the host of this quiz
+        if (socket.userId !== room.hostId) {
+          return socket.emit('error', { message: 'You are not the host of this quiz' });
         }
 
-        await event.update({ status: 'Ongoing' });
+        // Check if quiz is active
+        if (!room.isActive) {
+          return socket.emit('error', { message: 'Quiz is not active' });
+        }
 
+        // Move to next question
+        room.currentQuestionIndex++;
 
-        console.log(`Quiz ${eventId} started by host ${socket.userId}`);
+        // Check if we've reached the end of questions
+        if (room.currentQuestionIndex >= room.questions.length) {
+          // End of quiz
+          room.isActive = false;
+          io.to(`quiz-${eventId}`).emit('quiz-ended', {
+            message: 'Quiz completed!',
+            reason: 'All questions answered'
+          });
+
+          await Event.update({ status: 'Completed' }, { where: { id: eventId } });
+          return;
+        }
+
+        // Get current question
+        const question = room.questions[room.currentQuestionIndex];
+        room.questionInProgress = true;
+        room.answers = {}; // Reset answers for new question
+
+        // Send question to all participants (without correct answer)
+        io.to(`quiz-${eventId}`).emit('new-question', {
+          questionId: question.id,
+          questionText: question.question,
+          options: question.options,
+          questionNumber: room.currentQuestionIndex + 1,
+          totalQuestions: room.questions.length,
+          timer: 110 // 110 seconds per question
+        });
+
+        // Set timer to automatically end question after 110 seconds
+        setTimeout(() => {
+          if (room.questionInProgress && room.isActive) {
+            endQuestion(io, eventId, room, question);
+          }
+        }, 110000); // 110 seconds per question
+
+        console.log(`Question ${room.currentQuestionIndex + 1} sent for quiz ${eventId}`);
       } catch (error) {
-        console.error('Start quiz error:', error);
-        socket.emit('error', { message: 'Failed to start quiz' });
+        console.error('Next question error:', error);
+        socket.emit('error', { message: 'Failed to send next question' });
+      }
+    });
+
+    // Host can manually end the current question
+    socket.on('end-current-question', async ({ eventId }) => {
+      try {
+        // Verify user is a host
+        if (socket.role !== 'host') {
+          return socket.emit('error', { message: 'Only hosts can control questions' });
+        }
+
+        // Check if quiz room exists
+        const room = quizRooms.get(eventId);
+        if (!room) {
+          return socket.emit('error', { message: 'Quiz room not found' });
+        }
+
+        // Verify user is the host of this quiz
+        if (socket.userId !== room.hostId) {
+          return socket.emit('error', { message: 'You are not the host of this quiz' });
+        }
+
+        // Check if a question is in progress
+        if (!room.questionInProgress || !room.isActive) {
+          return socket.emit('error', { message: 'No question is currently in progress' });
+        }
+
+        // Get current question
+        const question = room.questions[room.currentQuestionIndex];
+
+        // End the question
+        endQuestion(io, eventId, room, question);
+
+        console.log(`Question ${room.currentQuestionIndex + 1} manually ended by host ${socket.userId}`);
+      } catch (error) {
+        console.error('End question error:', error);
+        socket.emit('error', { message: 'Failed to end question' });
       }
     });
 
@@ -251,3 +452,37 @@ export const initSocketIO = (io) => {
 
   return io;
 };
+
+// Helper function to end a question and show results
+function endQuestion(io, eventId, room, question) {
+  room.questionInProgress = false;
+
+  // Calculate results
+  const results = {
+    totalAnswers: Object.keys(room.answers).length,
+    correctCount: 0,
+    incorrectCount: 0,
+    userResults: {}
+  };
+
+  for (const [userId, data] of Object.entries(room.answers)) {
+    const isCorrect = data.answer === question.answer;
+    results.userResults[userId] = {
+      isCorrect,
+      points: isCorrect ? 10 : 0
+    };
+
+    if (isCorrect) {
+      results.correctCount++;
+    } else {
+      results.incorrectCount++;
+    }
+  }
+
+  // Send results to all participants
+  io.to(`quiz-${eventId}`).emit('question-ended', {
+    questionId: question.id,
+    correctAnswer: question.answer,
+    results: results
+  });
+}
