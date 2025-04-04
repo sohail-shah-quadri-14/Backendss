@@ -8,6 +8,38 @@ dotenv.config();
 
 const quizRooms = new Map();
 
+// Static questions for quiz
+const staticQuestions = [
+  {
+    id: "q1",
+    question: "What is the capital of France?",
+    options: ["London", "Berlin", "Paris", "Madrid"],
+    answer: "Paris",
+    timer: 110
+  },
+  {
+    id: "q2",
+    question: "Which planet is known as the Red Planet?",
+    options: ["Venus", "Mars", "Jupiter", "Saturn"],
+    answer: "Mars",
+    timer: 110
+  },
+  {
+    id: "q3",
+    question: "What is 2 + 2?",
+    options: ["3", "4", "5", "6"],
+    answer: "4",
+    timer: 110
+  },
+  {
+    id: "q4",
+    question: "Who wrote Romeo and Juliet?",
+    options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+    answer: "William Shakespeare",
+    timer: 110
+  }
+];
+
 export const initSocketIO = (io) => {
   io.use(async (socket, next) => {
     try {
@@ -128,13 +160,13 @@ export const initSocketIO = (io) => {
           });
         } else {
           // If room exists, update host and add to participants
-          const room = quizRooms.get(eventId);
-          room.hostId = socket.userId;
-          room.participants.add(socket.userId);
+          const existingRoom = quizRooms.get(eventId);
+          existingRoom.hostId = socket.userId;
+          existingRoom.participants.add(socket.userId);
         }
 
-        // Use static questions
-        room.questions = staticQuestions;
+        // Get the room (now it definitely exists)
+        const room = quizRooms.get(eventId);
         room.currentQuestionIndex = -1; // Start before first question
         room.isActive = true;
 
@@ -143,34 +175,8 @@ export const initSocketIO = (io) => {
           eventId,
           message: 'You are now hosting this quiz. Quiz is active!',
           status: 'Ongoing',
-          totalQuestions: staticQuestions.length
         });
 
-        // Find all users who registered for this event
-        const registrations = await UserEvent.findAll({
-          where: { eventId, status: 'Registered' },
-          attributes: ['userId']
-        });
-
-        // Get the registered user IDs
-        const registeredUserIds = registrations.map(reg => reg.userId);
-
-        // Notify registered users that the event is now ongoing
-        for (const [_, connectedSocket] of io.sockets.sockets) {
-          if (connectedSocket.userId && registeredUserIds.includes(connectedSocket.userId)) {
-            connectedSocket.emit('event-status-changed', {
-              eventId,
-              status: 'Ongoing'
-            });
-          }
-        }
-
-        // Broadcast to the room that the quiz has started
-        io.to(`quiz-${eventId}`).emit('quiz-started', {
-          message: 'Quiz started!',
-          eventStatus: 'Ongoing',
-          totalQuestions: staticQuestions.length
-        });
 
         console.log(`Host ${socket.userId} created quiz room for event ${eventId}`);
       } catch (error) {
