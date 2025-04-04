@@ -5,15 +5,15 @@ import AuthRoutes from "./routes/authRoutes.js";
 import cookieParser from "cookie-parser";
 import { testConnection, syncDatabase } from "./config/sqlconnection.js";
 import { Server } from "socket.io";
+import { initSocketIO } from "./utils/socketio.js";
 import UserRoutes from "./routes/userProfileRoutes.js";
 import EventRoutes from "./routes/eventRoutes.js";
 import AdminRoutes from "./routes/adminRoutes.js";
 import http from 'http';
-import { initSocketIO } from './utils/socketio.js';
-// import { connectToDatabase } from './config/mongodb.js';
-import DashboardRoutes from "./routes/dashboardRoutes.js";
-dotenv.config(); // Load environment variables
 import compression from 'compression';
+import DashboardRoutes from "./routes/dashboardRoutes.js";
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -21,32 +21,20 @@ const port = process.env.PORT || 5000;
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.io server
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:8081", // Frontend location
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    credentials: true // Allow cookies
-  },
-  cookie: {
-    name: "jwt",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "none"
+    origin: "*", // Adjust this later
+    methods: ["GET", "POST"]
   }
 });
 
-// Make io accessible from other files
-global.io = io;
-
-// Initialize socket.io handlers
+// Initialize WebSockets
 initSocketIO(io);
 
 
 app.use(compression());
 app.use(cookieParser());
 
-// CORS configuration
 app.use(
   cors({
     origin: ["http://localhost:8081", "http://52.203.42.98:8000", "http://52.203.42.98"],
@@ -55,7 +43,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
     exposedHeaders: ["Set-Cookie"],
     optionsSuccessStatus: 200,
-    maxAge: 86400 // 24 hours
+    maxAge: 86400
   })
 );
 
@@ -73,15 +61,11 @@ app.get('/', (req, res) => {
   res.json({ message: 'Howzdat API is running' });
 });
 
-// Open Database Connection & Sync Models
+// Open Database Connection & Start Server
 const startServer = async () => {
   try {
-    // Connect to SQL database
-    await testConnection(); // Check DB connection
-    await syncDatabase(); // Use with caution in production
-
-    // Connect to MongoDB (for questions)
-    // await connectToDatabase();
+    await testConnection();
+    await syncDatabase();
 
     server.listen(port, () => {
       console.log(` Server is running on port ${port}`);
