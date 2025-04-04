@@ -6,36 +6,72 @@ import UserEvent from '../models/UserEvents.js';
 
 dotenv.config();
 
-const quizRooms = new Map(); 
+const quizRooms = new Map();
 
 export const initSocketIO = (io) => {
   io.use(async (socket, next) => {
     try {
-      const cookies = socket.handshake.headers.cookie;
-      if (!cookies) return next(new Error('Authentication error: No cookies found'));
-  
-      // Extract token from cookies
-      const token = cookies
-        .split(';')
-        .map(c => c.trim().split('='))
-        .find(([name]) => ['jwt', 'token', 'authToken'].includes(name))?.[1];
-  
-      if (!token) return next(new Error('Authentication error: Auth cookie not found'));
-  
+      let token = null;
+
+      // 1. Try to get token from query parameters (for React Native)
+      if (socket.handshake.query && socket.handshake.query.token) {
+        token = socket.handshake.query.token;
+        console.log('Token found in query parameters');
+      }
+
+      // 2. Try to get token from auth header
+      else if (socket.handshake.headers.authorization) {
+        const authHeader = socket.handshake.headers.authorization;
+        if (authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7);
+          console.log('Token found in authorization header');
+        }
+      }
+
+      // 3. Try to get token from cookies (for web browsers)
+      else if (socket.handshake.headers.cookie) {
+        const cookies = socket.handshake.headers.cookie;
+        token = cookies
+          .split(';')
+          .map(c => c.trim().split('='))
+          .find(([name]) => ['jwt', 'token', 'accessToken'].includes(name))?.[1];
+
+        if (token) {
+          console.log('Token found in cookies');
+        }
+      }
+
+      if (!token) {
+        console.log('No token found in request');
+        return next(new Error('Authentication error: No token found in the socket'));
+      }
+
       // Verify JWT
       const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-  
+      console.log('Token verified successfully');
+
       // Fetch user from database
       const user = await User.findByPk(decoded.id);
-      if (!user) return next(new Error('Authentication error: User not found'));
-  
+      if (!user) {
+        console.log('User not found in database');
+        return next(new Error('Authentication error: User not found'));
+      }
+
       // Attach user data to socket
       socket.userId = user.id;
-      socket.role = user.role;
-  
+      socket.role = user.Role.toLowerCase(); // Note: Changed from user.role to user.Role.toLowerCase()
+      socket.userData = {
+        id: user.id,
+        name: `${user.FirstName} ${user.LastName}`,
+        email: user.Email,
+        role: user.Role
+      };
+
+      console.log(`User authenticated: ${user.Email} (${user.Role})`);
       next();
     } catch (error) {
-      next(new Error('Invalid token or authentication failed'));
+      console.error('Socket authentication error:', error.message);
+      next(new Error(`Authentication failed: ${error.message}`));
     }
   });
 
@@ -50,7 +86,7 @@ export const initSocketIO = (io) => {
           return socket.emit('error', { message: 'Invalid or inactive event' });
         }
 
-        if (socket.role === 'Student') {
+        if (socket.role === 'student') {
           const registration = await UserEvent.findOne({ where: { userId: socket.userId, eventId, status: 'Registered' } });
           if (!registration) return socket.emit('error', { message: 'Not registered for this event' });
 
@@ -74,7 +110,7 @@ export const initSocketIO = (io) => {
         }
 
         const room = quizRooms.get(eventId);
-        room.participants.add(socket.userId); 
+        room.participants.add(socket.userId);
 
         if (socket.role === 'host' && socket.userId !== room.hostId) {
           socket.leave(`quiz-${eventId}`);
@@ -144,7 +180,7 @@ export const initSocketIO = (io) => {
 
         socket.emit('answer-received', { questionId });
 
-       
+
         io.to(`quiz-${eventId}`).emit('answer-submitted', {
           userId: socket.userId,
           questionId
