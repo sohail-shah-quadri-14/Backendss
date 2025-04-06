@@ -170,6 +170,9 @@ export const initSocketIO = (io) => {
         room.currentQuestionIndex = -1; // Start before first question
         room.isActive = true;
 
+        // Assign static questions to the room
+        room.questions = staticQuestions;
+
         // Notify the host
         socket.emit('quiz-hosted', {
           eventId,
@@ -236,12 +239,12 @@ export const initSocketIO = (io) => {
           message: 'You have joined the quiz'
         });
 
-        // Notify the host about new participant
-        io.to(`user-${room.hostId}`).emit('participant-joined', {
-          userId: socket.userId,
-          name: socket.userData?.name || 'Unknown User',
-          participantCount: room.participants.size
-        });
+        // // Notify the host about new participant
+        // io.to(`user-${room.hostId}`).emit('participant-joined', {
+        //   userId: socket.userId,
+        //   name: socket.userData?.name || 'Unknown User',
+        //   participantCount: room.participants.size
+        // });
 
         console.log(`Student ${socket.userId} joined quiz ${eventId}`);
       } catch (error) {
