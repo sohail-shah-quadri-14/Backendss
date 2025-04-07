@@ -15,28 +15,28 @@ const staticQuestions = [
     question: "What is the capital of France?",
     options: ["London", "Berlin", "Paris", "Madrid"],
     answer: "Paris",
-    timer: 110
+    timer: 30 // Updated timer to 30 seconds
   },
   {
     id: "q2",
     question: "Which planet is known as the Red Planet?",
     options: ["Venus", "Mars", "Jupiter", "Saturn"],
     answer: "Mars",
-    timer: 110
+    timer: 30 // Updated timer to 30 seconds
   },
   {
     id: "q3",
     question: "What is 2 + 2?",
     options: ["3", "4", "5", "6"],
     answer: "4",
-    timer: 110
+    timer: 30 // Updated timer to 30 seconds
   },
   {
     id: "q4",
     question: "Who wrote Romeo and Juliet?",
     options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
     answer: "William Shakespeare",
-    timer: 110
+    timer: 30 // Updated timer to 30 seconds
   }
 ];
 
@@ -256,65 +256,44 @@ export const initSocketIO = (io) => {
     // Host sends the next question to all participants
     socket.on('next-question', async ({ eventId }) => {
       try {
-        // Verify user is a host
-        if (socket.role !== 'host') {
-          return socket.emit('error', { message: 'Only hosts can control questions' });
-        }
-
-        // Check if quiz room exists
         const room = quizRooms.get(eventId);
-        if (!room) {
-          return socket.emit('error', { message: 'Quiz room not found' });
+        if (!room || socket.userId !== room.hostId) {
+          return socket.emit('error', { message: 'Unauthorized host' });
         }
-
-        // Verify user is the host of this quiz
-        if (socket.userId !== room.hostId) {
-          return socket.emit('error', { message: 'You are not the host of this quiz' });
-        }
-
-        // Check if quiz is active
         if (!room.isActive) {
-          return socket.emit('error', { message: 'Quiz is not active' });
+          return socket.emit('error', { message: 'Quiz not active' });
         }
-
-        // Move to next question
+        if (room.questionInProgress) {
+          return socket.emit('error', { message: 'A question is already in progress' });
+        }
+    
         room.currentQuestionIndex++;
-
-        // Check if we've reached the end of questions
         if (room.currentQuestionIndex >= room.questions.length) {
-          // End of quiz
           room.isActive = false;
-          io.to(`quiz-${eventId}`).emit('quiz-ended', {
-            message: 'Quiz completed!',
-            reason: 'All questions answered'
-          });
-
+          io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'Quiz completed!' });
           await Event.update({ status: 'Completed' }, { where: { id: eventId } });
           return;
         }
-
-        // Get current question
+    
         const question = room.questions[room.currentQuestionIndex];
         room.questionInProgress = true;
-        room.answers = {}; // Reset answers for new question
-
-        // Send question to all participants (without correct answer)
+        room.answers = {};
+    
         io.to(`quiz-${eventId}`).emit('new-question', {
           questionId: question.id,
           questionText: question.question,
           options: question.options,
+          timer: 30, // Reduced timer to 30 seconds
           questionNumber: room.currentQuestionIndex + 1,
-          totalQuestions: room.questions.length,
-          timer: 110 // 110 seconds per question
+          totalQuestions: room.questions.length
         });
-
-        // Set timer to automatically end question after 110 seconds
+    
         setTimeout(() => {
           if (room.questionInProgress && room.isActive) {
             endQuestion(io, eventId, room, question);
           }
-        }, 110000); // 110 seconds per question
-
+        }, 30000); // Reduced timer to 30 seconds
+    
         console.log(`Question ${room.currentQuestionIndex + 1} sent for quiz ${eventId}`);
       } catch (error) {
         console.error('Next question error:', error);
@@ -429,7 +408,7 @@ export const initSocketIO = (io) => {
           questionId: question.id,
           questionText: question.question,
           options: question.options,
-          timer: question.timer,
+          timer: 30, // Reduced timer to 30 seconds
           questionNumber: room.currentQuestionIndex + 1,
           totalQuestions: room.questions.length
         });
@@ -438,7 +417,7 @@ export const initSocketIO = (io) => {
           if (room.questionInProgress && room.isActive) {
             endQuestion(io, eventId, room, question);
           }
-        }, question.timer * 1000);
+        }, 30000); // Reduced timer to 30 seconds
 
         console.log(`Question ${room.currentQuestionIndex + 1} sent for quiz ${eventId}`);
       } catch (error) {
