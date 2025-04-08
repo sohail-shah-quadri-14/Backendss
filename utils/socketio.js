@@ -349,12 +349,16 @@ export const initSocketIO = (io) => {
         // Sort leaderboard by total points (descending)
         leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
     
-        // Send leaderboard to all participants
-        socket.to(`quiz-${eventId}`).emit('quiz-results', {
+        // Log the result to the console
+        const result = {
           eventId,
           leaderboard,
           message: 'Quiz results are now available!'
-        });
+        };
+        console.log('Quiz Results:', JSON.stringify(result, null, 2)); // Pretty print the result
+    
+        // Send leaderboard to all participants
+        socket.to(`quiz-${eventId}`).emit('quiz-results', result);
     
         console.log(`Results sent for quiz ${eventId}`);
       } catch (error) {
@@ -362,7 +366,6 @@ export const initSocketIO = (io) => {
         socket.emit('error', { message: 'Failed to show results' });
       }
     });
-
 
     socket.on('end-quiz', async ({ eventId }) => {
       try {
