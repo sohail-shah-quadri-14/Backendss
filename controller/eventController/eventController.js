@@ -149,7 +149,7 @@ export const registerEvent = async (req, res) => {
  export const updateEvent = async (req, res) => {
     try {
       const { id } = req.params;
-      const { title, description, startTime, endTime } = req.body;
+      const {title, description, startTime, endTime , points, youtubeVideoId, picture } = req.body;
   
       const event = await Event.findByPk(id);
   
@@ -161,6 +161,9 @@ export const registerEvent = async (req, res) => {
       event.description = description;
       event.startTime = startTime;
       event.endTime=endTime;
+      event.points = points;
+      event.youtubeVideoId = youtubeVideoId;
+      event.picture = picture;
       await event.save();
   
       return res.status(200).json({ message: "Event updated successfully", event });

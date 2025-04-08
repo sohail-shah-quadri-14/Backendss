@@ -404,7 +404,7 @@ export const initSocketIO = (io) => {
         // Store the answer with the questionId
         room.answers[socket.userId][questionId] = { answer, timestamp };
     
-        socket.emit('answer-received', { questionId });
+        socket.emit('answer-received');
     
         io.to(`quiz-${eventId}`).emit('answer-submitted', {
           userId: socket.userId,
