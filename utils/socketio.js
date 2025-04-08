@@ -15,28 +15,28 @@ const staticQuestions = [
     question: "What is the capital of France?",
     options: ["London", "Berlin", "Paris", "Madrid"],
     answer: "Paris",
-    timer: 30 // Updated timer to 30 seconds
+    timer: 10 // Updated timer to 30 seconds
   },
   {
     id: "q2",
     question: "Which planet is known as the Red Planet?",
     options: ["Venus", "Mars", "Jupiter", "Saturn"],
     answer: "Mars",
-    timer: 30 // Updated timer to 30 seconds
+    timer: 10 // Updated timer to 30 seconds
   },
   {
     id: "q3",
     question: "What is 2 + 2?",
     options: ["3", "4", "5", "6"],
     answer: "4",
-    timer: 30 // Updated timer to 30 seconds
+    timer: 10 // Updated timer to 30 seconds
   },
   {
     id: "q4",
     question: "Who wrote Romeo and Juliet?",
     options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
     answer: "William Shakespeare",
-    timer: 30 // Updated timer to 30 seconds
+    timer: 10 // Updated timer to 30 seconds
   }
 ];
 
@@ -279,11 +279,12 @@ export const initSocketIO = (io) => {
         room.questionInProgress = true;
         room.answers = {};
     
-        io.to(`quiz-${eventId}`).emit('new-question', {
+        // Send question to all participants except the host
+        socket.to(`quiz-${eventId}`).emit('new-question', {
           questionId: question.id,
           questionText: question.question,
           options: question.options,
-          timer: 30, // Reduced timer to 30 seconds
+          timer: 10, // Timer in seconds
           questionNumber: room.currentQuestionIndex + 1,
           totalQuestions: room.questions.length
         });
@@ -292,7 +293,7 @@ export const initSocketIO = (io) => {
           if (room.questionInProgress && room.isActive) {
             endQuestion(io, eventId, room, question);
           }
-        }, 30000); // Reduced timer to 30 seconds
+        }, 11000); // Reduced timer to 30 seconds
     
         console.log(`Question ${room.currentQuestionIndex + 1} sent for quiz ${eventId}`);
       } catch (error) {
@@ -382,50 +383,6 @@ export const initSocketIO = (io) => {
       }
     });
 
-    socket.on('next-question', async ({ eventId }) => {
-      try {
-        const room = quizRooms.get(eventId);
-        if (!room || socket.userId !== room.hostId) {
-          return socket.emit('error', { message: 'Unauthorized host' });
-        }
-        if (!room.isActive) {
-          return socket.emit('error', { message: 'Quiz not active' });
-        }
-
-        room.currentQuestionIndex++;
-        if (room.currentQuestionIndex >= room.questions.length) {
-          room.isActive = false;
-          io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'Quiz completed!' });
-          await Event.update({ status: 'Completed' }, { where: { id: eventId } });
-          return;
-        }
-
-        const question = room.questions[room.currentQuestionIndex];
-        room.questionInProgress = true;
-        room.answers = {};
-
-        io.to(`quiz-${eventId}`).emit('new-question', {
-          questionId: question.id,
-          questionText: question.question,
-          options: question.options,
-          timer: 30, // Reduced timer to 30 seconds
-          questionNumber: room.currentQuestionIndex + 1,
-          totalQuestions: room.questions.length
-        });
-
-        setTimeout(() => {
-          if (room.questionInProgress && room.isActive) {
-            endQuestion(io, eventId, room, question);
-          }
-        }, 30000); // Reduced timer to 30 seconds
-
-        console.log(`Question ${room.currentQuestionIndex + 1} sent for quiz ${eventId}`);
-      } catch (error) {
-        console.error('Next question error:', error);
-        socket.emit('error', { message: 'Failed to send next question' });
-      }
-    });
-
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id} (User: ${socket.userId})`);
       if (socket.eventId) {
@@ -467,10 +424,5 @@ function endQuestion(io, eventId, room, question) {
     }
   }
 
-  // Send results to all participants
-  io.to(`quiz-${eventId}`).emit('question-ended', {
-    questionId: question.id,
-    correctAnswer: question.answer,
-    results: results
-  });
+  
 }

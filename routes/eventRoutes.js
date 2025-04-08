@@ -8,7 +8,6 @@ import {
   getOngoingEvents,
   getEventDetails,
   updateEvent,
-  startEvent,
   getRegisteredEvents
 } from "../controller/eventController/eventController.js";
 import { checkRole } from "../middleware/checkRole.js";
@@ -23,8 +22,6 @@ router.post("/create", authenticate, checkRole(["Host"]), createEvent);
 router.post("/join/:eventId", authenticate, registerEvent);
 
 
-// Start event (Host only)
-router.post("/start/:eventId", authenticate, checkRole(["Host"]), startEvent);
 
 // Get upcoming events (Public)
 router.get("/upcoming", authenticate, getUpcomingEvents);

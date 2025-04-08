@@ -173,15 +173,26 @@ export const registerEvent = async (req, res) => {
 // Get upcoming events
 export const getUpcomingEvents = async (req, res) => {
   try {
-    
+    const userId = req.user.id; // Get the logged-in user's ID
+
+    // Fetch events the user has already registered for
+    const registeredEventIds = await UserEvent.findAll({
+      where: { userId, status: "Registered" },
+      attributes: ["eventId"]
+    }).then((registrations) => registrations.map((reg) => reg.eventId));
+
+    // Fetch upcoming events excluding the ones the user has registered for
     const events = await Event.findAll({
       where: {
         status: "Upcoming",
         startTime: {
           [Op.gt]: new Date() // event start time > current time
-        } 
+        },
+        id: {
+          [Op.notIn]: registeredEventIds // Exclude registered events
+        }
       },
-      order: [['startTime', 'ASC']]
+      order: [["startTime", "ASC"]]
     });
 
     const eventsResponse = events.map(event => ({
@@ -269,55 +280,6 @@ export const getEventDetails = async (req, res) => {
     
     res.status(200).json(eventDetails);
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-
-// Start an event
-export const startEvent = async (req, res) => {
-  try {
-    const { eventId } = req.params;
-    const hostId = req.user.id;
-
-    const event = await Event.findByPk(eventId);
-    if (!event) {
-      console.log("Event not found:", eventId);
-      return res.status(404).json({ message: "Event not found" });
-    }
-
-    if (event.hostID !== hostId) {
-      console.log("Host ID mismatch:", { eventHostId: event.hostID, requestHostId: hostId });
-      return res.status(403).json({ message: "You can only start events you created" });
-    }
-
-    if (event.status === "Ongoing") {
-      return res.status(400).json({ message: "Event is already ongoing" });
-    }
-    if (event.status === "Completed") {
-      return res.status(400).json({ message: "Event is already completed" });
-    }
-
-    await event.update({ status: "Ongoing" });
-
-    if (global.io) {
-      global.io.to(`event-${eventId}`).emit("event-started", {
-        eventId: event.id,
-        title: event.title,
-        hostId: event.hostID,
-        status: event.status,
-        startTime: event.startTime
-      });
-      console.log("Socket.io event started:", event.id);
-    }
-
-    res.status(200).json({
-      message: "Event started successfully",
-      event
-    });
-  } catch (error) {
-    console.error("Error starting event:", error);
     res.status(500).json({ message: error.message });
   }
 };
