@@ -393,25 +393,30 @@ export const initSocketIO = (io) => {
         if (!room || !room.isActive || !room.questionInProgress) {
           return socket.emit('error', { message: 'Cannot submit answer now' });
         }
-
+    
         const timestamp = Date.now();
-        room.answers[socket.userId] = { answer, timestamp };
-
+    
+        // Ensure the user's answers object exists
+        if (!room.answers[socket.userId]) {
+          room.answers[socket.userId] = {};
+        }
+    
+        // Store the answer with the questionId
+        room.answers[socket.userId][questionId] = { answer, timestamp };
+    
         socket.emit('answer-received', { questionId });
-
-
+    
         io.to(`quiz-${eventId}`).emit('answer-submitted', {
           userId: socket.userId,
           questionId
         });
-
+    
         console.log(`Answer received from ${socket.userId} for question ${questionId} in quiz ${eventId}`);
       } catch (error) {
         console.error('Submit answer error:', error);
         socket.emit('error', { message: 'Failed to submit answer' });
       }
     });
-
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id} (User: ${socket.userId})`);
       if (socket.eventId) {
