@@ -268,6 +268,7 @@ export const initSocketIO = (io) => {
         }
     
         room.currentQuestionIndex++;
+        const isLastQuestion = room.currentQuestionIndex === room.questions.length - 1;
         if (room.currentQuestionIndex >= room.questions.length) {
           room.isActive = false;
           io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'Quiz completed!' });
@@ -279,14 +280,15 @@ export const initSocketIO = (io) => {
         room.questionInProgress = true;
         room.answers = {};
     
-        // Send question to all participants except the host
-        socket.to(`quiz-${eventId}`).emit('new-question', {
+        // Send question to all participants including the host
+        io.to(`quiz-${eventId}`).emit('new-question', {
           questionId: question.id,
           questionText: question.question,
           options: question.options,
           timer: 10, // Timer in seconds
           questionNumber: room.currentQuestionIndex + 1,
-          totalQuestions: room.questions.length
+          totalQuestions: room.questions.length,
+          isLastQuestion
         });
     
         setTimeout(() => {
