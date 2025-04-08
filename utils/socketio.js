@@ -315,13 +315,17 @@ export const initSocketIO = (io) => {
           return socket.emit('error', { message: 'Quiz is still active. End the quiz to show results.' });
         }
     
+        // Debugging logs
+        console.log('Room Questions:', JSON.stringify(room.questions, null, 2));
+        console.log('Room Answers:', JSON.stringify(room.answers, null, 2));
+    
         // Calculate leaderboard
         const leaderboard = [];
         for (const [userId, userAnswers] of Object.entries(room.answers)) {
           const userResult = {
             userId,
             name: room.participants.has(userId) ? socket.userData?.name || 'Unknown User' : 'Unknown User',
-            totalPoints: 0, // Total points scored
+            totalPoints: 0,
             questions: []
           };
     
@@ -338,7 +342,7 @@ export const initSocketIO = (io) => {
               });
     
               if (isCorrect) {
-                userResult.totalPoints += 10; // Award 10 points for correct answers
+                userResult.totalPoints += 10;
               }
             }
           }
@@ -346,21 +350,16 @@ export const initSocketIO = (io) => {
           leaderboard.push(userResult);
         }
     
-        // Sort leaderboard by total points (descending)
         leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
     
-        // Log the result to the console
         const result = {
           eventId,
           leaderboard,
           message: 'Quiz results are now available!'
         };
-        console.log('Quiz Results:', JSON.stringify(result, null, 2)); // Pretty print the result
+        console.log('Quiz Results:', JSON.stringify(result, null, 2));
     
-        // Send leaderboard to all participants
         socket.to(`quiz-${eventId}`).emit('quiz-results', result);
-    
-        console.log(`Results sent for quiz ${eventId}`);
       } catch (error) {
         console.error('Show results error:', error);
         socket.emit('error', { message: 'Failed to show results' });
