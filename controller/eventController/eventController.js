@@ -215,7 +215,6 @@ export const getUpcomingEvents = async (req, res) => {
   }
 };
 
-
 // Get ongoing events
 export const getOngoingEvents = async (req, res) => {
   try {
