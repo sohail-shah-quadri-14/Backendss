@@ -254,6 +254,56 @@ export const initSocketIO = (io) => {
     });
 
     // Host sends the next question to all participants
+    socket.on('next-question', async ({ eventId }) => {
+      try {
+        const room = quizRooms.get(eventId);
+        if (!room || socket.userId !== room.hostId) {
+          return socket.emit('error', { message: 'Unauthorized host' });
+        }
+        if (!room.isActive) {
+          return socket.emit('error', { message: 'Quiz not active' });
+        }
+        if (room.questionInProgress) {
+          return socket.emit('error', { message: 'A question is already in progress' });
+        }
+    
+        room.currentQuestionIndex++;
+        const isLastQuestion = room.currentQuestionIndex === room.questions.length - 1;
+        if (room.currentQuestionIndex >= room.questions.length) {
+          room.isActive = false;
+          io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'Quiz completed!' });
+          await Event.update({ status: 'Completed' }, { where: { id: eventId } });
+          return;
+        }
+    
+        const question = room.questions[room.currentQuestionIndex];
+        room.questionInProgress = true;
+        room.answers = {};
+    
+        // Send question to all participants including the host
+        io.to(`quiz-${eventId}`).emit('new-question', {
+          questionId: question.id,
+          questionText: question.question,
+          options: question.options,
+          timer: 10, // Timer in seconds
+          questionNumber: room.currentQuestionIndex + 1,
+          totalQuestions: room.questions.length,
+          isLastQuestion
+        });
+    
+        setTimeout(() => {
+          if (room.questionInProgress && room.isActive) {
+            endQuestion(io, eventId, room, question);
+          }
+        }, 11000); // Reduced timer to 30 seconds
+    
+        console.log(`Question ${room.currentQuestionIndex + 1} sent for quiz ${eventId}`);
+      } catch (error) {
+        console.error('Next question error:', error);
+        socket.emit('error', { message: 'Failed to send next question' });
+      }
+    });
+
     socket.on('show-results', async ({ eventId }) => {
       try {
         const room = quizRooms.get(eventId);
@@ -264,10 +314,6 @@ export const initSocketIO = (io) => {
         if (room.isActive) {
           return socket.emit('error', { message: 'Quiz is still active. End the quiz to show results.' });
         }
-    
-        // Debugging logs
-        console.log('Room Questions:', JSON.stringify(room.questions, null, 2));
-        console.log('Room Answers:', JSON.stringify(room.answers, null, 2));
     
         // Calculate leaderboard
         const leaderboard = [];
