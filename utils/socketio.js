@@ -304,69 +304,64 @@ export const initSocketIO = (io) => {
       }
     });
 
-socket.on('show-results', async ({ eventId }) => {
-  try {
-    const room = quizRooms.get(eventId);
-    if (!room || socket.userId !== room.hostId) {
-      return socket.emit('error', { message: 'Unauthorized host' });
-    }
-
-    if (room.isActive) {
-      return socket.emit('error', { message: 'Quiz is still active. End the quiz to show results.' });
-    }
-
-    // Calculate leaderboard
-    const leaderboard = [];
-    for (const [userId, userAnswers] of Object.entries(room.answers)) {
-      const userResult = {
-        userId,
-        name: room.participants.has(userId) ? socket.userData?.name || 'Unknown User' : 'Unknown User',
-        correctAnswers: 0,
-        incorrectAnswers: 0,
-        totalPoints: 0,
-        questions: []
-      };
-
-      for (const question of room.questions) {
-        const userAnswer = userAnswers[question.id];
-        if (userAnswer) {
-          const isCorrect = userAnswer.answer === question.answer;
-          userResult.questions.push({
-            questionId: question.id,
-            questionText: question.question,
-            isCorrect,
-            answer: userAnswer.answer,
-            correctAnswer: question.answer
-          });
-
-          if (isCorrect) {
-            userResult.correctAnswers++;
-            userResult.totalPoints += 10; // Award 10 points for correct answers
-          } else {
-            userResult.incorrectAnswers++;
-          }
+    socket.on('show-results', async ({ eventId }) => {
+      try {
+        const room = quizRooms.get(eventId);
+        if (!room || socket.userId !== room.hostId) {
+          return socket.emit('error', { message: 'Unauthorized host' });
         }
+    
+        if (room.isActive) {
+          return socket.emit('error', { message: 'Quiz is still active. End the quiz to show results.' });
+        }
+    
+        // Calculate leaderboard
+        const leaderboard = [];
+        for (const [userId, userAnswers] of Object.entries(room.answers)) {
+          const userResult = {
+            userId,
+            name: room.participants.has(userId) ? socket.userData?.name || 'Unknown User' : 'Unknown User',
+            totalPoints: 0, // Total points scored
+            questions: []
+          };
+    
+          for (const question of room.questions) {
+            const userAnswer = userAnswers[question.id];
+            if (userAnswer) {
+              const isCorrect = userAnswer.answer === question.answer;
+              userResult.questions.push({
+                questionId: question.id,
+                questionText: question.question,
+                isCorrect,
+                answer: userAnswer.answer,
+                correctAnswer: question.answer
+              });
+    
+              if (isCorrect) {
+                userResult.totalPoints += 10; // Award 10 points for correct answers
+              }
+            }
+          }
+    
+          leaderboard.push(userResult);
+        }
+    
+        // Sort leaderboard by total points (descending)
+        leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+    
+        // Send leaderboard to all participants
+        socket.to(`quiz-${eventId}`).emit('quiz-results', {
+          eventId,
+          leaderboard,
+          message: 'Quiz results are now available!'
+        });
+    
+        console.log(`Results sent for quiz ${eventId}`);
+      } catch (error) {
+        console.error('Show results error:', error);
+        socket.emit('error', { message: 'Failed to show results' });
       }
-
-      leaderboard.push(userResult);
-    }
-
-    // Sort leaderboard by total points (descending)
-    leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
-
-    // Send leaderboard to all participants
-    socket.to(`quiz-${eventId}`).emit('quiz-results', {
-      eventId,
-      leaderboard,
-      message: 'Quiz results are now available!'
     });
-
-    console.log(`Results sent for quiz ${eventId}`);
-  } catch (error) {
-    console.error('Show results error:', error);
-    socket.emit('error', { message: 'Failed to show results' });
-  }
-});
 
 
     socket.on('end-quiz', async ({ eventId }) => {
