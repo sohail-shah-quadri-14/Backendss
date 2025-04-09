@@ -326,7 +326,7 @@ export const initSocketIO = (io) => {
           const userResult = {
             userId,
             name: userName, // Use the fetched name
-            totalPoints: 0,
+            totalPoints: 0, // Points for this event only
             questions: []
           };
     
@@ -334,6 +334,8 @@ export const initSocketIO = (io) => {
             const userAnswer = userAnswers[question.id];
             if (userAnswer) {
               const isCorrect = userAnswer.answer === question.answer;
+              const points = isCorrect ? room.points : 0;
+    
               userResult.questions.push({
                 questionId: question.id,
                 questionText: question.question,
@@ -343,7 +345,7 @@ export const initSocketIO = (io) => {
               });
     
               if (isCorrect) {
-                userResult.totalPoints += room.points; // Use points from the room
+                userResult.totalPoints += points; // Add points for this event
               }
             } else {
               // Add unanswered questions with default values
@@ -401,7 +403,29 @@ export const initSocketIO = (io) => {
       }
     });
 
-
+    socket.on('end-quiz', async ({ eventId }) => {
+      try {
+        const room = quizRooms.get(eventId);
+        if (!room || socket.userId !== room.hostId) {
+          return socket.emit('error', { message: 'Unauthorized host' });
+        }
+        console.log("quiz is ended now by the host")
+    
+        // Mark the quiz as inactive
+        room.isActive = false;
+    
+        // Notify all participants that the quiz has ended
+        io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'The quiz has been ended by the host!' });
+    
+        // Update the event status in the database
+        await Event.update({ status: 'Completed' }, { where: { id: eventId } });
+    
+        console.log(`Quiz ${eventId} has been manually ended by the host.`);
+      } catch (error) {
+        console.error('End quiz error:', error);
+        socket.emit('error', { message: 'Failed to end quiz' });
+      }
+    });
 
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id} (User: ${socket.userId})`);
@@ -419,7 +443,7 @@ export const initSocketIO = (io) => {
 };
 
 // Helper function to end a question and show results
-function endQuestion(io, eventId, room, question) {
+async function endQuestion(io, eventId, room, question) {
   room.questionInProgress = false;
 
   // Calculate results
@@ -432,9 +456,12 @@ function endQuestion(io, eventId, room, question) {
 
   for (const [userId, data] of Object.entries(room.answers)) {
     const isCorrect = data.answer === question.answer;
+    const points = isCorrect ? room.points : 0;
+
+    // Update the results object
     results.userResults[userId] = {
       isCorrect,
-      points: isCorrect ? 10 : 0
+      points
     };
 
     if (isCorrect) {
@@ -442,5 +469,19 @@ function endQuestion(io, eventId, room, question) {
     } else {
       results.incorrectCount++;
     }
+
+    // Increment cumulative points in the database
+    await UserEvent.increment(
+      { pointsEarned: points },
+      { where: { userId, eventId } }
+    );
   }
+
+  // Emit results to all participants
+  io.to(`quiz-${eventId}`).emit('question-ended', {
+    questionId: question.id,
+    results
+  });
+
+  console.log(`Question ${question.id} ended for quiz ${eventId}`);
 }
