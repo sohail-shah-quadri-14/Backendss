@@ -156,13 +156,15 @@ export const initSocketIO = (io) => {
             currentQuestionIndex: -1,
             questionInProgress: false,
             answers: {},
-            isActive: false
+            isActive: false,
+            points: event.points
           });
         } else {
           // If room exists, update host and add to participants
           const existingRoom = quizRooms.get(eventId);
           existingRoom.hostId = socket.userId;
           existingRoom.participants.add(socket.userId);
+          existingRoom.points = event.points;
         }
 
         // Get the room (now it definitely exists)
@@ -341,7 +343,7 @@ export const initSocketIO = (io) => {
               });
     
               if (isCorrect) {
-                userResult.totalPoints += 10;
+                userResult.totalPoints += room.points; // Use points from the room
               }
             } else {
               // Add unanswered questions with default values
