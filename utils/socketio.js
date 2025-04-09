@@ -278,7 +278,7 @@ export const initSocketIO = (io) => {
     
         const question = room.questions[room.currentQuestionIndex];
         room.questionInProgress = true;
-        room.answers = {};
+        // room.answers = {};
     
         // Send question to all participants including the host
         io.to(`quiz-${eventId}`).emit('new-question', {
@@ -304,6 +304,7 @@ export const initSocketIO = (io) => {
       }
     });
 
+    
     socket.on('show-results', async ({ eventId }) => {
       try {
         const room = quizRooms.get(eventId);
@@ -311,20 +312,18 @@ export const initSocketIO = (io) => {
           return socket.emit('error', { message: 'Unauthorized host' });
         }
     
-        if (room.isActive) {
-          return socket.emit('error', { message: 'Quiz is still active. End the quiz to show results.' });
-        }
-    
-        // Debugging logs
-        console.log('Room Questions:', JSON.stringify(room.questions, null, 2));
-        console.log('Room Answers:', JSON.stringify(room.answers, null, 2));
+        console.log('room.answers in show-results:', room.answers);
     
         // Calculate leaderboard
         const leaderboard = [];
         for (const [userId, userAnswers] of Object.entries(room.answers)) {
+          // Fetch user data from the database
+          const user = await User.findByPk(userId);
+          const userName = user ? `${user.FirstName} ${user.LastName}` : 'Unknown User';
+    
           const userResult = {
             userId,
-            name: room.participants.has(userId) ? socket.userData?.name || 'Unknown User' : 'Unknown User',
+            name: userName, // Use the fetched name
             totalPoints: 0,
             questions: []
           };
@@ -344,6 +343,15 @@ export const initSocketIO = (io) => {
               if (isCorrect) {
                 userResult.totalPoints += 10;
               }
+            } else {
+              // Add unanswered questions with default values
+              userResult.questions.push({
+                questionId: question.id,
+                questionText: question.question,
+                isCorrect: false,
+                answer: null, // No answer submitted
+                correctAnswer: question.answer
+              });
             }
           }
     
@@ -366,26 +374,6 @@ export const initSocketIO = (io) => {
       }
     });
 
-    socket.on('end-quiz', async ({ eventId }) => {
-      try {
-        const room = quizRooms.get(eventId);
-        if (!room || socket.userId !== room.hostId) {
-          return socket.emit('error', { message: 'Unauthorized host' });
-        }
-
-        room.isActive = false;
-        io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'Quiz ended!' });
-
-        await Event.update({ status: 'Completed' }, { where: { id: eventId } });
-
-        console.log(`Quiz ${eventId} ended by host ${socket.userId}`);
-      } catch (error) {
-        console.error('End quiz error:', error);
-        socket.emit('error', { message: 'Failed to end quiz' });
-      }
-    });
-
-
 
     socket.on('submit-answer', async ({ eventId, questionId, answer }) => {
       try {
@@ -404,19 +392,15 @@ export const initSocketIO = (io) => {
         // Store the answer with the questionId
         room.answers[socket.userId][questionId] = { answer, timestamp };
     
-        socket.emit('answer-received');
-    
-        io.to(`quiz-${eventId}`).emit('answer-submitted', {
-          userId: socket.userId,
-          questionId
-        });
-    
         console.log(`Answer received from ${socket.userId} for question ${questionId} in quiz ${eventId}`);
       } catch (error) {
         console.error('Submit answer error:', error);
         socket.emit('error', { message: 'Failed to submit answer' });
       }
     });
+
+
+
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id} (User: ${socket.userId})`);
       if (socket.eventId) {
