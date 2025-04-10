@@ -207,6 +207,7 @@ export const getUpcomingEvents = async (req, res) => {
       hostID: event.hostID,
       picture: event.picture,
       points: event.points,
+      youtubeVideoId: event.youtubeVideoId,
     }));
 
     res.status(200).json(eventsResponse);
@@ -258,13 +259,16 @@ export const getOngoingEvents = async (req, res) => {
 // Get event details
 export const getEventDetails = async (req, res) => {
   try {
-    const { eventId } = req.params;
-    const event = await Event.findByPk(eventId);
-    
+    const { id } = req.params;
+    console.log(`Fetching event details for ID: ${id}`); // Log the event ID
+
+    const event = await Event.findByPk(id);
+    console.log(`Event fetched:`, event); // Log the fetched event
+
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
-    
+
     const eventDetails = {
       id: event.id,
       title: event.title,
@@ -273,11 +277,13 @@ export const getEventDetails = async (req, res) => {
       endTime: event.endTime,
       points: event.points,
       status: event.status,
-      picture: event.picture
+      picture: event.picture,
+      youtubeVideoId: event.youtubeVideoId
     };
-    
+
     res.status(200).json(eventDetails);
   } catch (error) {
+    console.error("Error fetching event details:", error);
     res.status(500).json({ message: error.message });
   }
 };
