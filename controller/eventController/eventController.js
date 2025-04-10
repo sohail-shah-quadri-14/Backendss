@@ -273,10 +273,6 @@ export const getEventDetails = async (req, res) => {
       endTime: event.endTime,
       points: event.points,
       status: event.status,
-      hostID: event.hostID,
-      currentParticipants: event.currentParticipants,
-      subject: event.subject,
-      standard: event.standard,
       picture: event.picture
     };
     
