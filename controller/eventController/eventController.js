@@ -260,11 +260,9 @@ export const getOngoingEvents = async (req, res) => {
 export const getEventDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`Fetching event details for ID: ${id}`); // Log the event ID
+
 
     const event = await Event.findByPk(id);
-    console.log(`Event fetched:`, event); // Log the fetched event
-
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
