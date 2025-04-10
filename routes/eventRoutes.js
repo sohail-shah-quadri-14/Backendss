@@ -33,9 +33,9 @@ router.get("/ongoing", authenticate, getOngoingEvents);
 router.get("/registered", authenticate, getRegisteredEvents);
 
 // Get event details (Public)
-router.get("/:eventId", authenticate, getEventDetails);
+router.get("/:id", authenticate, getEventDetails);
 
 // Update event (Host only)
-router.put("/:eventId", authenticate, checkRole(["Host"]), updateEvent);
+router.put("/:id", authenticate, checkRole(["Host"]), updateEvent);
 
 export default router;

@@ -49,7 +49,11 @@ Event.init(
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: true,
-    }
+    },
+    youtubeVideoId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     sequelize,

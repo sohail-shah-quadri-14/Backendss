@@ -146,32 +146,32 @@ export const registerEvent = async (req, res) => {
 };
 
 
- export const updateEvent = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const {title, description, startTime, endTime , points, youtubeVideoId, picture } = req.body;
-  
-      const event = await Event.findByPk(id);
-  
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-  
-      event.title = title;
-      event.description = description;
-      event.startTime = startTime;
-      event.endTime=endTime;
-      event.points = points;
-      event.youtubeVideoId = youtubeVideoId;
-      event.picture = picture;
-      await event.save();
-  
-      return res.status(200).json({ message: "Event updated successfully", event });
-    } catch (error) {
-      console.error("Error updating event:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+export const updateEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {title, description, startTime, endTime , points, youtubeVideoId, picture } = req.body;
+
+    const event = await Event.findByPk(id);
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
     }
-  };
+
+    event.title = title;
+    event.description = description;
+    event.startTime = startTime;
+    event.endTime=endTime;
+    event.points = points;
+    event.youtubeVideoId = youtubeVideoId;
+    event.picture = picture;
+    await event.save();
+
+    return res.status(200).json({ message: "Event updated successfully", event });
+  } catch (error) {
+    console.error("Error updating event:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 // Get upcoming events
 export const getUpcomingEvents = async (req, res) => {
