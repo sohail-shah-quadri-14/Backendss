@@ -83,12 +83,8 @@ User.init(
       type: DataTypes.ENUM("Student", "Host", "Admin"),
       defaultValue: "Student", // Default role is Student
     },
-    pointsEarned: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-      allowNull: false,
-    },
-    totalEventsPlayed: {
+    // Renamed to totalPointsEarned for clarity
+    totalPointsEarned: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: false,

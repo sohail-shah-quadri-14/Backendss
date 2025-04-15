@@ -111,7 +111,7 @@ export const getUserDetails = async (req, res) => {
         "DateOfBirth", 
         "address", 
         "Role", 
-        "pointsEarned", 
+        "totalPointsEarned",
         "totalEventsPlayed", 
         "createdAt"
       ]

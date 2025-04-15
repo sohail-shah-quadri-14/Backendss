@@ -2,7 +2,6 @@ import Event from "../../models/Event.js";
 import UserEvent from "../../models/UserEvents.js";
 import { Op } from "sequelize";
 
-
 // Create new event
 export const createEvent = async (req, res) => {
   try {
@@ -145,7 +144,6 @@ export const registerEvent = async (req, res) => {
   }
 };
 
-
 export const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -265,7 +263,7 @@ export const getEventDetails = async (req, res) => {
     const event = await Event.findByPk(id);
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
-    }
+    } 
 
     const eventDetails = {
       id: event.id,

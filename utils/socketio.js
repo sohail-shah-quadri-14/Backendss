@@ -102,7 +102,7 @@ export const initSocketIO = (io) => {
       console.log(`User authenticated: ${user.Email} (${user.Role})`);
       next();
     } catch (error) {
-      console.error('Socket authentication error:', error.message);
+      console.error('Socket authentication error:', error.message); 
       next(new Error(`Authentication failed: ${error.message}`));
     }
   });
@@ -190,7 +190,7 @@ export const initSocketIO = (io) => {
       }
     });
 
-    // Students join an existing quiz
+    // Students joins a quiz
     socket.on('join-live-quiz', async ({ eventId }) => {
       try {
         // Verify user is a student
@@ -306,7 +306,6 @@ export const initSocketIO = (io) => {
       }
     });
 
-    
     socket.on('show-results', async ({ eventId }) => {
       try {
         const room = quizRooms.get(eventId);
@@ -378,7 +377,6 @@ export const initSocketIO = (io) => {
       }
     });
 
-
     socket.on('submit-answer', async ({ eventId, questionId, answer }) => {
       try {
         const room = quizRooms.get(eventId);
@@ -397,6 +395,7 @@ export const initSocketIO = (io) => {
         room.answers[socket.userId][questionId] = { answer, timestamp };
     
         console.log(`Answer received from ${socket.userId} for question ${questionId} in quiz ${eventId}`);
+        console.log(`Stored answer:`, room.answers[socket.userId][questionId]);
       } catch (error) {
         console.error('Submit answer error:', error);
         socket.emit('error', { message: 'Failed to submit answer' });
@@ -454,9 +453,21 @@ async function endQuestion(io, eventId, room, question) {
     userResults: {}
   };
 
-  for (const [userId, data] of Object.entries(room.answers)) {
-    const isCorrect = data.answer === question.answer;
+  console.log('room.answers at the start of endQuestion:', room.answers);
+
+  for (const [userId, userAnswers] of Object.entries(room.answers)) {
+    const userAnswer = userAnswers[question.id];
+    console.log(`Processing userId: ${userId}, questionId: ${question.id}, userAnswer:`, userAnswer);
+
+    if (!userAnswer) {
+      console.log(`No answer found for userId: ${userId}, questionId: ${question.id}`);
+      continue;
+    }
+
+    const isCorrect = userAnswer.answer === question.answer;
+    console.log(`isCorrect: ${isCorrect}`);
     const points = isCorrect ? room.points : 0;
+    console.log(`Calculated points: ${points}`);
 
     // Update the results object
     results.userResults[userId] = {
@@ -471,10 +482,26 @@ async function endQuestion(io, eventId, room, question) {
     }
 
     // Increment cumulative points in the database
-    await UserEvent.increment(
-      { pointsEarned: points },
-      { where: { userId, eventId } }
-    );
+    console.log(`Updating points for userId: ${userId}, eventId: ${eventId}, points: ${points}`);
+    try {
+      const result = await UserEvent.increment(
+        { totalPointsEarned: points },
+        { where: { userId, eventId } }
+      );
+      console.log(`Database update result:`, result);
+
+      // Fallback to update method if increment fails
+      if (!result || result[0] === undefined) {
+        console.log('Increment method failed, falling back to update method');
+        await UserEvent.update(
+          { totalPointsEarned: points },
+          { where: { userId, eventId } }
+        );
+        console.log('Points updated using update method');
+      }
+    } catch (error) {
+      console.error(`Error updating points for userId: ${userId}, eventId: ${eventId}`, error);
+    }
   }
 
   // Emit results to all participants

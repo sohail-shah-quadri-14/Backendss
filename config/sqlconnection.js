@@ -12,7 +12,7 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     dialect: 'mysql',
     port: process.env.DB_PORT || 3306,
-    logging: false,  //  Disable SQL logs
+    logging: false, // Enable query logging
 
     pool: {
       max: 50, // As our aws rds supports 60 max connections
