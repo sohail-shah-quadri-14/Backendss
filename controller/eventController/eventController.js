@@ -1,17 +1,17 @@
 import Event from "../../models/Event.js";
 import UserEvent from "../../models/UserEvents.js";
 import { Op } from "sequelize";
+import { sequelize } from "../../config/sqlconnection.js";
 
 // Create new event
 export const createEvent = async (req, res) => {
   try {
-    
     console.log(req.user.id);
     const { title, description, startTime, endTime, points, youtubeVideoId, picture } = req.body; 
     const hostID = req.user.id;
 
     // Validate required fields
-    if (!title || !description || !startTime || !endTime || !points || !youtubeVideoId  ) {
+    if (!title || !description || !startTime || !endTime || !points || !youtubeVideoId) {
       return res.status(400).json({ 
         message: "All fields are required" 
       });
@@ -27,7 +27,7 @@ export const createEvent = async (req, res) => {
     const event = await Event.create({
       title,
       description,
-      picture,
+      picture, // Store base64 string directly
       startTime,
       endTime,
       points,
@@ -259,7 +259,6 @@ export const getEventDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-
     const event = await Event.findByPk(id);
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -326,6 +325,65 @@ export const getRegisteredEvents = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+// Delete event (Host only)
+export const deleteEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Find the event
+    const event = await Event.findByPk(id);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // Check if the user is the host of this event
+    if (event.hostID !== userId) {
+      return res.status(403).json({ 
+        message: "Only the host can delete this event" 
+      });
+    }
+
+    // Start a transaction
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Get all participants before deletion
+      const participants = await UserEvent.findAll({
+        where: { eventId: id },
+        attributes: ['userId'],
+        transaction
+      });
+
+      // Delete all related UserEvent records first
+      await UserEvent.destroy({
+        where: { eventId: id },
+        transaction
+      });
+
+      // Then delete the event
+      await event.destroy({ transaction });
+
+      // Commit the transaction
+      await transaction.commit();
+
+    
+
+      res.status(200).json({ 
+        message: "Event deleted successfully",
+        participantsNotified: participants.length
+      });
+    } catch (error) {
+      // If anything goes wrong, rollback the transaction
+      await transaction.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 

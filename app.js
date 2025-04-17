@@ -12,11 +12,12 @@ import AdminRoutes from "./routes/adminRoutes.js";
 import http from 'http';
 import compression from 'compression';
 import DashboardRoutes from "./routes/dashboardRoutes.js";
+import bodyParser from 'body-parser';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8000;
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -31,6 +32,9 @@ const io = new Server(server, {
 // Initialize WebSockets
 initSocketIO(io);
 
+// Increase payload size limit
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(compression());
 app.use(cookieParser());

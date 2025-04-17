@@ -3,7 +3,6 @@ dotenv.config();
 import User from "../../models/User.js";
 // import  transporter  from "../../config/transporter.js";
 import jwt from "jsonwebtoken";
-import e from "express";
 
 
 

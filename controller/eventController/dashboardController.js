@@ -11,7 +11,15 @@ export const getStudentStats = async (req, res) => {
 
     // Get user's stats
     const user = await User.findByPk(userId, {
-      attributes: ['totalPointsEarned', 'totalEventsPlayed', 'pointsRedeemed'],
+      attributes: ['totalPointsEarned', 'pointsRedeemed'],
+    });
+
+    // Get total events played (completed events)
+    const totalEventsPlayed = await UserEvent.count({
+      where: {
+        userId,
+        status: "Completed"
+      }
     });
 
     // Get RSVP'd events count
@@ -24,7 +32,7 @@ export const getStudentStats = async (req, res) => {
 
     res.status(200).json({
       stats: {
-        totalEventsPlayed: user.totalEventsPlayed,
+        totalEventsPlayed,
         totalPointsEarned: user.totalPointsEarned,
         pointsRedeemed: user.pointsRedeemed,
         rsvpdEvents: rsvpdCount

@@ -47,7 +47,7 @@ export const closeConnection = async () => {
 //  Sync Database Models (ONLY Run on Startup!)
 export const syncDatabase = async () => {
   try {
-    await sequelize.sync(); //  Creates tables if they don’t // use {force : true inside of sync to remove tables and create new one  
+    await sequelize.sync(); // This will remove the totalEventsPlayed column
     console.log(' Database Synced Successfully!');
   } catch (error) {
     console.error(' Error syncing database:', error);

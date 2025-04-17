@@ -8,7 +8,8 @@ import {
   getOngoingEvents,
   getEventDetails,
   updateEvent,
-  getRegisteredEvents
+  getRegisteredEvents,
+  deleteEvent
 } from "../controller/eventController/eventController.js";
 import { checkRole } from "../middleware/checkRole.js";
 
@@ -37,5 +38,8 @@ router.get("/:id", authenticate, getEventDetails);
 
 // Update event (Host only)
 router.put("/:id", authenticate, checkRole(["Host"]), updateEvent);
+
+// Delete event (Host only)
+router.delete("/:id", authenticate, checkRole(["Host"]),deleteEvent);
 
 export default router;

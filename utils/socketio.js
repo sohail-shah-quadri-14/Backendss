@@ -40,6 +40,25 @@ const staticQuestions = [
   }
 ];
 
+// Function to get and broadcast participant count
+async function broadcastParticipantCount(io, eventId) {
+  try {
+    // Get count of participants in the room
+    const room = quizRooms.get(eventId);
+    if (!room) return;
+
+    const participantCount = Object.keys(room.participants || {}).length;
+
+    // Broadcast to all clients in the room
+    io.to(`quiz-${eventId}`).emit('participant-count', {
+      eventId,
+      count: participantCount
+    });
+  } catch (error) {
+    console.error('Error broadcasting participant count:', error);
+  }
+}
+
 export const initSocketIO = (io) => {
   io.use(async (socket, next) => {
     try {
@@ -111,7 +130,7 @@ export const initSocketIO = (io) => {
     console.log(`New connection: ${socket.id} (User: ${socket.userId}, Role: ${socket.role})`);
     socket.emit('connected', { userId: socket.userId, role: socket.role });
 
-    // Host creates and joins a quiz room
+    // Host creates and joins a īīūquiz room
     socket.on('host-quiz', async ({ eventId }) => {
       try {
         // Verify user is a host
@@ -213,6 +232,17 @@ export const initSocketIO = (io) => {
           return socket.emit('error', { message: 'You are not registered for this event' });
         }
 
+        // Get the quiz room
+        const room = quizRooms.get(eventId);
+        if (!room) {
+          return socket.emit('error', { message: 'Quiz room not found' });
+        }
+
+        // Check if student is already in the room
+        if (room.participants && room.participants[socket.userId]) {
+          return socket.emit('error', { message: 'You have already joined this quiz' });
+        }
+
         // Update registration status
         await registration.update({ status: 'Joined' });
 
@@ -225,28 +255,32 @@ export const initSocketIO = (io) => {
         socket.eventId = eventId;
         socket.join(`quiz-${eventId}`);
 
-        // Get quiz room
-        const room = quizRooms.get(eventId);
-        if (!room) {
-          return socket.emit('error', { message: 'Quiz room not found' });
+        // Add participant to room
+        if (!room.participants) {
+          room.participants = {};
         }
+        room.participants[socket.userId] = {
+          id: socket.userId,
+          name: socket.userData?.name || 'Unknown User',
+          score: 0
+        };
 
-        // Add student to participants
-        room.participants.add(socket.userId);
+        // Broadcast updated participant count
+        await broadcastParticipantCount(io, eventId);
 
         // Notify the student
-        socket.emit('joined-quiz', {
+        socket.emit('joined-quiz', { 
+          message: 'Successfully joined quiz',
           eventId,
-          participantCount: room.participants.size,
-          message: 'You have joined the quiz'
+          participantCount: Object.keys(room.participants).length
         });
 
-        // // Notify the host about new participant
-        // io.to(`user-${room.hostId}`).emit('participant-joined', {
-        //   userId: socket.userId,
-        //   name: socket.userData?.name || 'Unknown User',
-        //   participantCount: room.participants.size
-        // });
+        // Notify the host about new participant
+        io.to(`quiz-${eventId}`).emit('participant-joined', {
+          userId: socket.userId,
+          name: socket.userData?.name || 'Unknown User',
+          participantCount: Object.keys(room.participants).length
+        });
 
         console.log(`Student ${socket.userId} joined quiz ${eventId}`);
       } catch (error) {
@@ -324,7 +358,7 @@ export const initSocketIO = (io) => {
     
           const userResult = {
             userId,
-            name: userName, // Use the fetched name
+            name: userName,
             totalPoints: 0, // Points for this event only
             questions: []
           };
@@ -340,11 +374,12 @@ export const initSocketIO = (io) => {
                 questionText: question.question,
                 isCorrect,
                 answer: userAnswer.answer,
-                correctAnswer: question.answer
+                correctAnswer: question.answer,
+                pointsEarned: points
               });
     
               if (isCorrect) {
-                userResult.totalPoints += points; // Add points for this event
+                userResult.totalPoints += points;
               }
             } else {
               // Add unanswered questions with default values
@@ -352,8 +387,9 @@ export const initSocketIO = (io) => {
                 questionId: question.id,
                 questionText: question.question,
                 isCorrect: false,
-                answer: null, // No answer submitted
-                correctAnswer: question.answer
+                answer: null,
+                correctAnswer: question.answer,
+                pointsEarned: 0
               });
             }
           }
@@ -408,32 +444,61 @@ export const initSocketIO = (io) => {
         if (!room || socket.userId !== room.hostId) {
           return socket.emit('error', { message: 'Unauthorized host' });
         }
-        console.log("quiz is ended now by the host")
-    
-        // Mark the quiz as inactive
-        room.isActive = false;
-    
-        // Notify all participants that the quiz has ended
-        io.to(`quiz-${eventId}`).emit('quiz-ended', { message: 'The quiz has been ended by the host!' });
-    
-        // Update the event status in the database
-        await Event.update({ status: 'Completed' }, { where: { id: eventId } });
-    
-        console.log(`Quiz ${eventId} has been manually ended by the host.`);
+
+        // Update event status to completed
+        await Event.update(
+          { status: 'Completed' },
+          { where: { id: eventId } }
+        );
+
+        // Update all participants' UserEvent status to Completed
+        await UserEvent.update(
+          { status: 'Completed' },
+          { where: { eventId } }
+        );
+
+        // Clean up the room
+        quizRooms.delete(eventId);
+    // Emit quiz-ended to all participants including host
+    io.to(`quiz-${eventId}`).emit('quiz-ended', {
+      message: 'Quiz has ended',
+      shouldDisconnect: true  // Add this flag
+    });
+
+    // Disconnect all sockets in the room
+    const roomSockets = await io.in(`quiz-${eventId}`).fetchSockets();
+    roomSockets.forEach(socket => {
+      socket.disconnect(true);  // Force disconnect
+    });
       } catch (error) {
         console.error('End quiz error:', error);
         socket.emit('error', { message: 'Failed to end quiz' });
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id} (User: ${socket.userId})`);
-      if (socket.eventId) {
-        const room = quizRooms.get(socket.eventId);
-        if (room) {
-          room.participants.delete(socket.userId);
-          io.to(`quiz-${socket.eventId}`).emit('participant-left', { userId: socket.userId, participantCount: room.participants.size });
+    // Handle disconnection
+    socket.on('disconnect', async () => {
+      try {
+        // Find all rooms the socket is in
+        const rooms = Array.from(socket.rooms);
+        
+        for (const roomName of rooms) {
+          if (roomName.startsWith('quiz-')) {
+            const eventId = roomName.replace('quiz-', '');
+            const room = quizRooms.get(eventId);
+            
+            if (room && room.participants) {
+              // Remove participant
+              delete room.participants[socket.userId];
+              
+              // Broadcast updated count
+              await broadcastParticipantCount(io, eventId);
+            }
+          }
+          console.log('socket disconnected');
         }
+      } catch (error) {
+        console.error('Disconnect error:', error);
       }
     });
   });
@@ -477,30 +542,31 @@ async function endQuestion(io, eventId, room, question) {
 
     if (isCorrect) {
       results.correctCount++;
+      
+      // Update points in both UserEvent and User models
+      try {
+        // First update UserEvent points
+        const userEvent = await UserEvent.findOne({
+          where: { userId, eventId }
+        });
+
+        if (userEvent) {
+          // Update pointsEarned in UserEvent
+          await userEvent.update({
+            pointsEarned: userEvent.pointsEarned + points
+          });
+
+          // Update totalPointsEarned in User
+          await User.increment('totalPointsEarned', {
+            by: points,
+            where: { id: userId }
+          });
+        }
+      } catch (error) {
+        console.error(`Error updating points for userId: ${userId}, eventId: ${eventId}`, error);
+      }
     } else {
       results.incorrectCount++;
-    }
-
-    // Increment cumulative points in the database
-    console.log(`Updating points for userId: ${userId}, eventId: ${eventId}, points: ${points}`);
-    try {
-      const result = await UserEvent.increment(
-        { totalPointsEarned: points },
-        { where: { userId, eventId } }
-      );
-      console.log(`Database update result:`, result);
-
-      // Fallback to update method if increment fails
-      if (!result || result[0] === undefined) {
-        console.log('Increment method failed, falling back to update method');
-        await UserEvent.update(
-          { totalPointsEarned: points },
-          { where: { userId, eventId } }
-        );
-        console.log('Points updated using update method');
-      }
-    } catch (error) {
-      console.error(`Error updating points for userId: ${userId}, eventId: ${eventId}`, error);
     }
   }
 
