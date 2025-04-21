@@ -512,11 +512,16 @@ async function endQuestion(io, eventId, room, question) {
 
   // Calculate results
   const results = {
-    totalAnswers: Object.keys(room.answers).length,
+    totalAnswers: 0,  // Start with 0, will count actual answers
     correctCount: 0,
     incorrectCount: 0,
-    userResults: {}
+    optionStats: {} // Track how many users selected each option
   };
+
+  // Initialize optionStats with all possible options
+  question.options.forEach(option => {
+    results.optionStats[option] = 0;
+  });
 
   console.log('room.answers at the start of endQuestion:', room.answers);
 
@@ -529,16 +534,16 @@ async function endQuestion(io, eventId, room, question) {
       continue;
     }
 
+    // Only increment totalAnswers if user actually answered
+    results.totalAnswers++;
+
+    // Count how many users selected each option
+    results.optionStats[userAnswer.answer] = (results.optionStats[userAnswer.answer] || 0) + 1;
+
     const isCorrect = userAnswer.answer === question.answer;
     console.log(`isCorrect: ${isCorrect}`);
     const points = isCorrect ? room.points : 0;
     console.log(`Calculated points: ${points}`);
-
-    // Update the results object
-    results.userResults[userId] = {
-      isCorrect,
-      points
-    };
 
     if (isCorrect) {
       results.correctCount++;
@@ -570,11 +575,18 @@ async function endQuestion(io, eventId, room, question) {
     }
   }
 
+  console.log('results are of each questions\n');
+  console.log(results);
+
   // Emit results to all participants
   io.to(`quiz-${eventId}`).emit('question-ended', {
     questionId: question.id,
-    results
+    results: {
+      totalAnswers: results.totalAnswers,
+      correctCount: results.correctCount,
+      incorrectCount: results.incorrectCount,
+      optionStats: results.optionStats,
+      correctAnswer: question.answer
+    }
   });
-
-  console.log(`Question ${question.id} ended for quiz ${eventId}`);
 }
