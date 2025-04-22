@@ -99,7 +99,7 @@ User.init(
       allowNull: true,
     },
     profilePicture: {
-      type: DataTypes.STRING(100000), // Store URL or path to the image
+      type: DataTypes.STRING(1000000), // Large enough for base64 images
       allowNull: true,
       defaultValue: null
     },
