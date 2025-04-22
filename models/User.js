@@ -98,6 +98,11 @@ User.init(
       type: DataTypes.STRING(1024),
       allowNull: true,
     },
+    profilePicture: {
+      type: DataTypes.STRING(100000), // Store URL or path to the image
+      allowNull: true,
+      defaultValue: null
+    },
   },
   {
     sequelize,
