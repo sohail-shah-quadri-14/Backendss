@@ -7,7 +7,7 @@ export const getUserProfile = async (req, res) => {
 
     // Find user by ID
     const user = await User.findByPk(userId, {
-      attributes: [ "id","FirstName","LastName", "Email", "Phone", "address", "DateOfBirth", "gender"], // Use correct field names
+      attributes: [ "id","FirstName","LastName", "Email", "Phone", "address", "DateOfBirth", "gender", "profilePicture"], // Use correct field names
     });
 
     if (!user) return res.status(404).json({ message: "User not found" });
