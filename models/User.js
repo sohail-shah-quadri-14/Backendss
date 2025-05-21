@@ -99,7 +99,7 @@ User.init(
       allowNull: true,
     },
     profilePicture: {
-      type: DataTypes.STRING(1000000), // Large enough for base64 images
+      type: DataTypes.BLOB(), // Large enough for base64 images
       allowNull: true,
       defaultValue: null
     },
