@@ -20,7 +20,7 @@ Event.init(
       allowNull: false,
     },
     picture: {
-      type: DataTypes.BLOB(), // Large enough for base64 images
+      type: DataTypes.TEXT('long'), // Large enough for base64 images
       allowNull: true,
     },
     hostID: {
